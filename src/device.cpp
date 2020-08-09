@@ -2,74 +2,64 @@
 
 using namespace NodeCuda;
 
-Persistent<FunctionTemplate> Device::constructor_template;
+Nan::Persistent<FunctionTemplate> Device::constructor;
 
-void Device::Initialize(Handle<Object> target) {
-  HandleScope scope;
+NAN_MODULE_INIT(Device::Initialize) {
+  Local<FunctionTemplate> t = Nan::New<FunctionTemplate>(Device::New);
+  t->InstanceTemplate()->SetInternalFieldCount(1);
+  t->SetClassName(Nan::New("CudaDevice").ToLocalChecked());
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(Device::New);
-  constructor_template = Persistent<FunctionTemplate>::New(t);
-  constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
-  constructor_template->SetClassName(String::NewSymbol("CudaDevice"));
+  Nan::SetAccessor(t->InstanceTemplate(), Nan::New("name").ToLocalChecked(), Device::GetName);
+  Nan::SetAccessor(t->InstanceTemplate(), Nan::New("totalMem").ToLocalChecked(), Device::GetTotalMem);
+  Nan::SetAccessor(t->InstanceTemplate(), Nan::New("computeCapability").ToLocalChecked(), Device::GetComputeCapability);
 
-  constructor_template->InstanceTemplate()->SetAccessor(String::New("name"), Device::GetName);
-  constructor_template->InstanceTemplate()->SetAccessor(String::New("totalMem"), Device::GetTotalMem);
-  constructor_template->InstanceTemplate()->SetAccessor(String::New("computeCapability"), Device::GetComputeCapability);
-
-  target->Set(String::NewSymbol("Device"), constructor_template->GetFunction());
+  target->Set(Nan::New("Device").ToLocalChecked(), t->GetFunction());
+  Device::constructor.Reset(t);
 }
 
 static Handle<Value> GetName_(CUdevice device) {
-  HandleScope scope;
   char deviceName[256];
 
   cuDeviceGetName(deviceName, 256, device);
-  Local<String> result = String::New(deviceName);
-  return scope.Close(result);
+  Local<String> result = Nan::New(deviceName).ToLocalChecked();
+  return result;
 }
 
-Handle<Value> Device::New(const Arguments& args) {
-  HandleScope scope;
-  Local<Object> result = args.This();
-  int ordinal = args[0]->IntegerValue();
+NAN_METHOD(Device::New) {
+  Local<Object> result = info.Holder();
+  int ordinal = Nan::To<int32_t>(info[0]).ToChecked();
 
-  if (!constructor_template->HasInstance(result)) {
-    result = constructor_template->InstanceTemplate()->NewInstance();
+  if (!Nan::New(Device::constructor)->HasInstance(result)) {
+    result = Nan::New<FunctionTemplate>(Device::constructor)->InstanceTemplate()->NewInstance();
   }
 
   Device *pdevice = new Device();
   cuDeviceGet(&(pdevice->m_device), ordinal);
 
   pdevice->Wrap(result);
-  return scope.Close(result);
+  info.GetReturnValue().Set(result);
 }
 
-Handle<Value> Device::GetComputeCapability(Local<String> property, const AccessorInfo &info) {
-  HandleScope scope;
-
+NAN_GETTER(Device::GetComputeCapability) {
   Device *pdevice = ObjectWrap::Unwrap<Device>(info.Holder());
   int major = 0, minor = 0;
   cuDeviceComputeCapability(&major, &minor, pdevice->m_device);
 
-  Local<Object> result = Object::New();
-  result->Set(String::New("major"), Integer::New(major));
-  result->Set(String::New("minor"), Integer::New(minor));
-  return scope.Close(result);
+  Local<Object> result = Nan::New<Object>();
+  result->Set(Nan::New("major").ToLocalChecked(), Nan::New<Integer>(major));
+  result->Set(Nan::New("minor").ToLocalChecked(), Nan::New<Integer>(minor));
+  info.GetReturnValue().Set(result);
 }
 
-Handle<Value> Device::GetName(Local<String> property, const AccessorInfo &info) {
-  HandleScope scope;
-
+NAN_GETTER(Device::GetName) {
   Device *pdevice = ObjectWrap::Unwrap<Device>(info.Holder());
-  return GetName_(pdevice->m_device);
+  info.GetReturnValue().Set(GetName_(pdevice->m_device));
 }
 
-Handle<Value> Device::GetTotalMem(Local<String> property, const AccessorInfo &info) {
-  HandleScope scope;
-
+NAN_GETTER(Device::GetTotalMem) {
   Device *pdevice = ObjectWrap::Unwrap<Device>(info.Holder());
   size_t totalGlobalMem;
   cuDeviceTotalMem(&totalGlobalMem, pdevice->m_device);
 
-  return scope.Close(Number::New(totalGlobalMem));
+  info.GetReturnValue().Set(Nan::New<Integer>(static_cast<uint32_t>(totalGlobalMem)));
 }

@@ -9,19 +9,19 @@ namespace NodeCuda {
 
   class Ctx : public ObjectWrap {
     public:
-      static void Initialize(Handle<Object> target);
+      static NAN_MODULE_INIT(Initialize);
 
     protected:
-      static Persistent<FunctionTemplate> constructor_template;
+      static Nan::Persistent<FunctionTemplate> constructor;
 
-      static Handle<Value> New(const Arguments& args);
-      static Handle<Value> Destroy(const Arguments& args);
-      static Handle<Value> PushCurrent(const Arguments& args);
-      static Handle<Value> PopCurrent(const Arguments& args);
-      static Handle<Value> SetCurrent(const Arguments& args);
-      static Handle<Value> GetCurrent(const Arguments& args);
-      static Handle<Value> Synchronize(const Arguments& args);
-      static Handle<Value> GetApiVersion(Local<String> property, const AccessorInfo &info);
+      static NAN_METHOD(New);
+      static NAN_METHOD(Destroy);
+      static NAN_METHOD(PushCurrent);
+      static NAN_METHOD(PopCurrent);
+      static NAN_METHOD(SetCurrent);
+      static NAN_METHOD(GetCurrent);
+      static NAN_METHOD(Synchronize);
+      static NAN_GETTER(GetApiVersion);
 
       Ctx() : ObjectWrap(), m_context(NULL), m_device(0), sync_in_progress(false) {}
 

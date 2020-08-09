@@ -10,6 +10,9 @@
         "src/mem.cpp",
         "src/module.cpp"
         ],
+      "include_dirs": [
+                "<!(node -e \"require('nan')\")"
+        ],
       'conditions': [
         [ 'OS=="mac"', {
           'libraries': ['-framework CUDA'],

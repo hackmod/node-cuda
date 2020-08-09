@@ -3,101 +3,90 @@
 
 using namespace NodeCuda;
 
-Persistent<FunctionTemplate> Ctx::constructor_template;
+Nan::Persistent<FunctionTemplate> Ctx::constructor;
 
-void Ctx::Initialize(Handle<Object> target) {
-  HandleScope scope;
+NAN_MODULE_INIT(Ctx::Initialize) {
+  Local<FunctionTemplate> t = Nan::New<FunctionTemplate>(Ctx::New);
+  t->InstanceTemplate()->SetInternalFieldCount(1);
+  t->SetClassName(Nan::New("CudaCtx").ToLocalChecked());
 
-  Local<FunctionTemplate> t = FunctionTemplate::New(Ctx::New);
-  constructor_template = Persistent<FunctionTemplate>::New(t);
-  constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
-  constructor_template->SetClassName(String::NewSymbol("CudaCtx"));
+  Nan::SetPrototypeMethod(t, "destroy", Ctx::Destroy);
+  Nan::SetPrototypeMethod(t, "pushCurrent", Ctx::PushCurrent);
+  Nan::SetPrototypeMethod(t, "popCurrent", Ctx::PopCurrent);
+  Nan::SetPrototypeMethod(t, "setCurrent", Ctx::SetCurrent);
+  Nan::SetPrototypeMethod(t, "getCurrent", Ctx::GetCurrent);
+  Nan::SetPrototypeMethod(t, "synchronize", Ctx::Synchronize);
+  Nan::SetAccessor(t->InstanceTemplate(), Nan::New("apiVersion").ToLocalChecked(), Ctx::GetApiVersion);
 
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "destroy", Ctx::Destroy);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "pushCurrent", Ctx::PushCurrent);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "popCurrent", Ctx::PopCurrent);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "setCurrent", Ctx::SetCurrent);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "getCurrent", Ctx::GetCurrent);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "synchronize", Ctx::Synchronize);
-  constructor_template->InstanceTemplate()->SetAccessor(String::New("apiVersion"), Ctx::GetApiVersion);
-
-  target->Set(String::NewSymbol("Ctx"), constructor_template->GetFunction());
+  target->Set(Nan::New("Ctx").ToLocalChecked(), t->GetFunction());
+  constructor.Reset(t);
 }
 
-Handle<Value> Ctx::New(const Arguments& args) {
-  HandleScope scope;
-
+NAN_METHOD(Ctx::New) {
   Ctx *pctx = new Ctx();
-  pctx->Wrap(args.This());
+  pctx->Wrap(info.Holder());
 
-  unsigned int flags = args[0]->Uint32Value();
-  pctx->m_device = ObjectWrap::Unwrap<Device>(args[1]->ToObject())->m_device;
+  unsigned int flags = Nan::To<uint32_t>(info[0]).ToChecked();
+  pctx->m_device = ObjectWrap::Unwrap<Device>(Nan::To<Object>(info[1]).ToLocalChecked())->m_device;
 
   cuCtxCreate(&(pctx->m_context), flags, pctx->m_device);
 
-  return args.This();
+  info.GetReturnValue().Set(info.Holder());
 }
 
-Handle<Value> Ctx::Destroy(const Arguments& args) {
-  HandleScope scope;
-  Ctx *pctx = ObjectWrap::Unwrap<Ctx>(args.This());
+NAN_METHOD(Ctx::Destroy) {
+  Ctx *pctx = ObjectWrap::Unwrap<Ctx>(info.Holder());
 
   CUresult error = cuCtxDestroy(pctx->m_context);
-  return scope.Close(Number::New(error));
+  info.GetReturnValue().Set(Nan::New<Integer>(error));
 }
 
-Handle<Value> Ctx::PushCurrent(const Arguments& args) {
-  HandleScope scope;
-  Ctx *pctx = ObjectWrap::Unwrap<Ctx>(args.This());
+NAN_METHOD(Ctx::PushCurrent) {
+  Ctx *pctx = ObjectWrap::Unwrap<Ctx>(info.Holder());
 
   CUresult error = cuCtxPushCurrent(pctx->m_context);
-  return scope.Close(Number::New(error));
+  info.GetReturnValue().Set(Nan::New<Integer>(error));
 }
 
-Handle<Value> Ctx::PopCurrent(const Arguments& args) {
-  HandleScope scope;
-  Ctx *pctx = ObjectWrap::Unwrap<Ctx>(args.This());
+NAN_METHOD(Ctx::PopCurrent) {
+  Ctx *pctx = ObjectWrap::Unwrap<Ctx>(info.Holder());
 
   CUresult error = cuCtxPopCurrent(&(pctx->m_context));
-  return scope.Close(Number::New(error));
+  info.GetReturnValue().Set(Nan::New<Integer>(error));
 }
 
-Handle<Value> Ctx::SetCurrent(const Arguments& args) {
-  HandleScope scope;
-  Ctx *pctx = ObjectWrap::Unwrap<Ctx>(args.This());
+NAN_METHOD(Ctx::SetCurrent) {
+  Ctx *pctx = ObjectWrap::Unwrap<Ctx>(info.Holder());
 
   CUresult error = cuCtxSetCurrent(pctx->m_context);
-  return scope.Close(Number::New(error));
+  info.GetReturnValue().Set(Nan::New<Integer>(error));
 }
 
-Handle<Value> Ctx::GetCurrent(const Arguments& args) {
-  HandleScope scope;
-  Ctx *pctx = ObjectWrap::Unwrap<Ctx>(args.This());
+NAN_METHOD(Ctx::GetCurrent) {
+  Ctx *pctx = ObjectWrap::Unwrap<Ctx>(info.Holder());
 
   CUresult error = cuCtxGetCurrent(&(pctx->m_context));
-  return scope.Close(Number::New(error));
+  info.GetReturnValue().Set(Nan::New<Integer>(error));
 }
 
 struct SynchronizeParams {
   Ctx *ctx;
   CUresult error;
-  Persistent<Function> cb;
+  Nan::Callback *cb;
 };
 
-Handle<Value> Ctx::Synchronize(const Arguments& args) {
-  HandleScope scope;
-
-  if (args.Length() >= 1 && args[0]->IsFunction()) {
+NAN_METHOD(Ctx::Synchronize) {
+  if (info.Length() >= 1 && info[0]->IsFunction()) {
     // Asynchronous
-    Local<Function> cb = Local<Function>::Cast(args[0]);
 
-    Ctx *ctx = ObjectWrap::Unwrap<Ctx>(args.This());
-    if (ctx->sync_in_progress)
-      return scope.Close(Number::New(-1));
+    Ctx *ctx = ObjectWrap::Unwrap<Ctx>(info.Holder());
+    if (ctx->sync_in_progress) {
+      info.GetReturnValue().Set(Nan::New<Integer>(-1));
+    }
 
     SynchronizeParams *params = new SynchronizeParams();
     params->ctx = ctx;
-    params->cb = Persistent<Function>::New(cb);
+    params->cb = new Nan::Callback(info[0].As<Function>());
 
     cuCtxPopCurrent(NULL);
 
@@ -114,12 +103,11 @@ Handle<Value> Ctx::Synchronize(const Arguments& args) {
     ctx->Ref();
     ctx->sync_in_progress = true;
 
-    return Undefined();
-
+    info.GetReturnValue().Set(Nan::Undefined());
   } else {
     // Synchronous
     CUresult error = cuCtxSynchronize();
-    return scope.Close(Number::New(error));
+    info.GetReturnValue().Set(Nan::New<Integer>(error));
   }
 }
 
@@ -136,8 +124,9 @@ void Ctx::Process(uv_work_t* work_req) {
 }
 
 void Ctx::After(uv_work_t* work_req, int status) {
+  Nan::HandleScope scope;
+
   assert(status == 0);
-  HandleScope scope;
   SynchronizeParams *params = static_cast<SynchronizeParams*>(work_req->data);
 
   params->ctx->Unref();
@@ -146,23 +135,21 @@ void Ctx::After(uv_work_t* work_req, int status) {
   cuCtxPushCurrent(params->ctx->m_context);
 
   Local<Value> argv[1];
-  argv[0] = Number::New(params->error);
+  argv[0] = Nan::New<Integer>(params->error);
 
-  TryCatch try_catch;
-  params->cb->Call(Context::GetCurrent()->Global(), 1, argv);
+  Nan::TryCatch try_catch;
+  params->cb->Call(1, argv);
   if (try_catch.HasCaught()) FatalException(try_catch);
 
-  params->cb.Dispose();
   uv_unref((uv_handle_t*) work_req);
   delete params;
 }
 
-Handle<Value> Ctx::GetApiVersion(Local<String> property, const AccessorInfo &info) {
-  HandleScope scope;
+NAN_GETTER(Ctx::GetApiVersion) {
   Ctx *pctx = ObjectWrap::Unwrap<Ctx>(info.Holder());
 
   unsigned int version;
   CUresult error = cuCtxGetApiVersion(pctx->m_context, &version);
 
-  return scope.Close(Number::New(version));
+  info.GetReturnValue().Set(Nan::New<Integer>(version));
 }

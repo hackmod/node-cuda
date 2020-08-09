@@ -3,57 +3,57 @@
 
 using namespace NodeCuda;
 
-Persistent<FunctionTemplate> Module::constructor_template;
+Nan::Persistent<FunctionTemplate> NodeCuda::Module::constructor;
 
-void Module::Initialize(Handle<Object> target) {
-  HandleScope scope;
-
-  Local<FunctionTemplate> t = FunctionTemplate::New(Module::New);
-  constructor_template = Persistent<FunctionTemplate>::New(t);
-  constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
-  constructor_template->SetClassName(String::NewSymbol("CudaModule"));
+NAN_MODULE_INIT(NodeCuda::Module::Initialize) {
+  Local<FunctionTemplate> t = Nan::New<FunctionTemplate>(NodeCuda::Module::New);
+  t->InstanceTemplate()->SetInternalFieldCount(1);
+  t->SetClassName(Nan::New("CudaModule").ToLocalChecked());
 
   // Module objects can only be created by load functions
-  NODE_SET_METHOD(target, "moduleLoad", Module::Load);
+  Nan::SetMethod(target, "moduleLoad", NodeCuda::Module::Load);
 
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "getFunction", Module::GetFunction);
+  Nan::SetPrototypeMethod(t, "getFunction", NodeCuda::Module::GetFunction);
+
+  target->Set(Nan::New("Module").ToLocalChecked(), t->GetFunction());
+  NodeCuda::Module::constructor.Reset(t);
 }
 
-Handle<Value> Module::New(const Arguments& args) {
-  HandleScope scope;
+NAN_METHOD(NodeCuda::Module::New) {
+  NodeCuda::Module *pmodule = new NodeCuda::Module();
+  pmodule->Wrap(info.Holder());
 
-  Module *pmem = new Module();
-  pmem->Wrap(args.This());
-
-  return args.This();
+  info.GetReturnValue().Set(info.Holder());
 }
 
-Handle<Value> Module::Load(const Arguments& args) {
-  HandleScope scope;
-  Local<Object> result = constructor_template->InstanceTemplate()->NewInstance();
-  Module *pmodule = ObjectWrap::Unwrap<Module>(result);
+NAN_METHOD(NodeCuda::Module::Load) {
+  Local<Object> result = Nan::New<FunctionTemplate>(NodeCuda::Module::constructor)->InstanceTemplate()->NewInstance();
+  NodeCuda::Module *pmodule = new NodeCuda::Module();
+  pmodule->Wrap(result);
+  //NodeCuda::Module *pmodule = ObjectWrap::Unwrap<NodeCuda::Module>(result);
 
-  String::AsciiValue fname(args[0]);
+  Nan::Utf8String fname(info[0]);
   CUresult error = cuModuleLoad(&(pmodule->m_module), *fname);
 
-  result->Set(String::New("fname"), args[0]);
-  result->Set(String::New("error"), Integer::New(error));
+  result->Set(Nan::New("fname").ToLocalChecked(), Nan::To<String>(info[0]).ToLocalChecked());
+  result->Set(Nan::New("error").ToLocalChecked(), Nan::New<Integer>(error));
 
-  return scope.Close(result);
+  info.GetReturnValue().Set(result);
 }
 
-Handle<Value> Module::GetFunction(const Arguments& args) {
-  HandleScope scope;
-  Local<Object> result = NodeCuda::Function::constructor_template->InstanceTemplate()->NewInstance();
-  Module *pmodule = ObjectWrap::Unwrap<Module>(args.This());
-  NodeCuda::Function *pfunction = ObjectWrap::Unwrap<NodeCuda::Function>(result);
+NAN_METHOD(NodeCuda::Module::GetFunction) {
+  Local<Object> result = Nan::New<FunctionTemplate>(NodeCuda::Function::constructor)->InstanceTemplate()->NewInstance();
+  NodeCuda::Module *pmodule = ObjectWrap::Unwrap<NodeCuda::Module>(info.Holder());
+  NodeCuda::Function *pfunction = new NodeCuda::Function();
+  pfunction->Wrap(result);
+  //NodeCuda::Function *pfunction = ObjectWrap::Unwrap<NodeCuda::Function>(result);
 
-  String::AsciiValue name(args[0]);
-  CUresult error = cuModuleGetFunction(&(pfunction->m_function), pmodule->m_module, *name);
+  Nan::Utf8String name(info[0]);
+  CUresult error = cuModuleGetFunction(&pfunction->m_function, pmodule->m_module, *name);
 
-  result->Set(String::New("name"), args[0]);
-  result->Set(String::New("error"), Integer::New(error));
+  result->Set(Nan::New("name").ToLocalChecked(), Nan::To<String>(info[0]).ToLocalChecked());
+  result->Set(Nan::New("error").ToLocalChecked(), Nan::New<Integer>(error));
 
-  return scope.Close(result);
+  info.GetReturnValue().Set(result);
 }
 

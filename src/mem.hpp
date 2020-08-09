@@ -9,25 +9,25 @@ namespace NodeCuda {
 
   class Mem : public ObjectWrap {
     public:
-      static void Initialize(Handle<Object> target);
+      static NAN_MODULE_INIT(Initialize);
 
     protected:
-      static Persistent<FunctionTemplate> constructor_template;
+      static Nan::Persistent<FunctionTemplate> constructor;
 
-      static Handle<Value> Alloc(const Arguments& args);
-      static Handle<Value> AllocPitch(const Arguments& args);
-      static Handle<Value> Free(const Arguments& args);
-      static Handle<Value> CopyHtoD(const Arguments& args);
-      static Handle<Value> CopyDtoH(const Arguments& args);
+      static NAN_METHOD(Alloc);
+      static NAN_METHOD(AllocPitch);
+      static NAN_METHOD(Free);
+      static NAN_METHOD(CopyHtoD);
+      static NAN_METHOD(CopyDtoH);
 
-      static Handle<Value> GetDevicePtr(Local<String> property, const AccessorInfo &info);
+      static NAN_GETTER(GetDevicePtr);
 
       Mem() : ObjectWrap(), m_devicePtr(0) {}
 
       ~Mem() {}
 
     private:
-      static Handle<Value> New(const Arguments& args);
+      static NAN_METHOD(New);
 
       CUdeviceptr m_devicePtr;
 

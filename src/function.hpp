@@ -9,23 +9,23 @@ namespace NodeCuda {
 
   class Function : public ObjectWrap {
     public:
-      static void Initialize(Handle<Object> target);
+      static NAN_MODULE_INIT(Initialize);
 
     protected:
-      static Persistent<FunctionTemplate> constructor_template;
+      static Nan::Persistent<FunctionTemplate> constructor;
 
-      static Handle<Value> LaunchKernel(const Arguments& args);
+      static NAN_METHOD(LaunchKernel);
 
       Function() : ObjectWrap(), m_function(0) {}
 
       ~Function() {}
 
     private:
-      static Handle<Value> New(const Arguments& args);
+      static NAN_METHOD(New);
 
       CUfunction m_function;
 
-      friend Handle<Value> Module::GetFunction(const Arguments&);
+      friend NAN_METHOD(Module::GetFunction);
   };
 
 }

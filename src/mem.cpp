@@ -1,89 +1,87 @@
 #include <cstring>
-#include <node_buffer.h>
+#include <stdio.h>
 #include "mem.hpp"
 
 using namespace NodeCuda;
 
-Persistent<FunctionTemplate> Mem::constructor_template;
+Nan::Persistent<FunctionTemplate> Mem::constructor;
 
-void Mem::Initialize(Handle<Object> target) {
-  HandleScope scope;
-
-  Local<FunctionTemplate> t = FunctionTemplate::New(Mem::New);
-  constructor_template = Persistent<FunctionTemplate>::New(t);
-  constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
-  constructor_template->SetClassName(String::NewSymbol("CudaMem"));
+NAN_MODULE_INIT(Mem::Initialize) {
+  Local<FunctionTemplate> t = Nan::New<FunctionTemplate>(Mem::New);
+  t->InstanceTemplate()->SetInternalFieldCount(1);
+  t->SetClassName(Nan::New("CudaMem").ToLocalChecked());
 
   // Mem objects can only be created by allocation functions
-  NODE_SET_METHOD(target, "memAlloc", Mem::Alloc);
-  NODE_SET_METHOD(target, "memAllocPitch", Mem::AllocPitch);
+  Nan::SetMethod(target, "memAlloc", Mem::Alloc);
+  Nan::SetMethod(target, "memAllocPitch", Mem::AllocPitch);
 
-  constructor_template->InstanceTemplate()->SetAccessor(String::New("devicePtr"), Mem::GetDevicePtr);
+  Nan::SetAccessor(t->InstanceTemplate(), Nan::New("devicePtr").ToLocalChecked(), Mem::GetDevicePtr);
 
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "free", Mem::Free);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "copyHtoD", Mem::CopyHtoD);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "copyDtoH", Mem::CopyDtoH);
+  Nan::SetPrototypeMethod(t, "free", Mem::Free);
+  Nan::SetPrototypeMethod(t, "copyHtoD", Mem::CopyHtoD);
+  Nan::SetPrototypeMethod(t, "copyDtoH", Mem::CopyDtoH);
+
+  target->Set(Nan::New("Mem").ToLocalChecked(), t->GetFunction());
+  Mem::constructor.Reset(t);
 }
 
-Handle<Value> Mem::New(const Arguments& args) {
-  HandleScope scope;
+NAN_METHOD(Mem::New) {
+  if (info.IsConstructCall()) {
+    Mem *pmem = new Mem();
+    pmem->Wrap(info.This());
 
+    info.GetReturnValue().Set(info.This());
+  }
+}
+
+NAN_METHOD(Mem::Alloc) {
+  Local<Object> result = Nan::New<FunctionTemplate>(Mem::constructor)->InstanceTemplate()->NewInstance();
   Mem *pmem = new Mem();
-  pmem->Wrap(args.This());
+  pmem->Wrap(result);
 
-  return args.This();
-}
-
-Handle<Value> Mem::Alloc(const Arguments& args) {
-  HandleScope scope;
-  Local<Object> result = constructor_template->InstanceTemplate()->NewInstance();
-  Mem *pmem = ObjectWrap::Unwrap<Mem>(result);
-
-  size_t bytesize = args[0]->Uint32Value();
+  size_t bytesize = Nan::To<uint32_t>(info[0]).ToChecked();
   CUresult error = cuMemAlloc(&(pmem->m_devicePtr), bytesize);
 
-  result->Set(String::New("size"), Integer::NewFromUnsigned(bytesize));
-  result->Set(String::New("error"), Integer::New(error));
+  result->Set(Nan::New("size").ToLocalChecked(), Nan::New<Integer>(static_cast<uint32_t>(bytesize)));
+  result->Set(Nan::New("error").ToLocalChecked(), Nan::New<Integer>(error));
 
-  return scope.Close(result);
+  info.GetReturnValue().Set(result);
 }
 
-Handle<Value> Mem::AllocPitch(const Arguments& args) {
-  HandleScope scope;
-  Local<Object> result = constructor_template->InstanceTemplate()->NewInstance();
-  Mem *pmem = ObjectWrap::Unwrap<Mem>(result);
+NAN_METHOD(Mem::AllocPitch) {
+  Local<Object> result = Nan::New<FunctionTemplate>(Mem::constructor)->InstanceTemplate()->NewInstance();
+  Mem *pmem = new Mem();
+  pmem->Wrap(result);
 
   size_t pPitch;
-  unsigned int ElementSizeBytes = args[2]->Uint32Value();
-  size_t WidthInBytes = ElementSizeBytes * args[0]->Uint32Value();
-  size_t Height = args[1]->Uint32Value();
+  unsigned int ElementSizeBytes = Nan::To<uint32_t>(info[2]).ToChecked();
+  size_t WidthInBytes = ElementSizeBytes * Nan::To<uint32_t>(info[0]).ToChecked();
+  size_t Height = Nan::To<uint32_t>(info[1]).ToChecked();
   CUresult error = cuMemAllocPitch(&(pmem->m_devicePtr), &pPitch, WidthInBytes, Height, ElementSizeBytes);
 
-  result->Set(String::New("size"), Integer::NewFromUnsigned(pPitch * Height));
-  result->Set(String::New("pitch"), Integer::NewFromUnsigned(pPitch));
-  result->Set(String::New("error"), Integer::New(error));
+  result->Set(Nan::New("size").ToLocalChecked(), Nan::New<Integer>(static_cast<uint32_t>(pPitch * Height)));
+  result->Set(Nan::New("pitch").ToLocalChecked(), Nan::New<Integer>(static_cast<uint32_t>(pPitch)));
+  result->Set(Nan::New("error").ToLocalChecked(), Nan::New<Integer>(error));
 
-  return scope.Close(result);
+  info.GetReturnValue().Set(result);
 }
 
-Handle<Value> Mem::Free(const Arguments& args) {
-  HandleScope scope;
-  Mem *pmem = ObjectWrap::Unwrap<Mem>(args.This());
+NAN_METHOD(Mem::Free) {
+  Mem *pmem = ObjectWrap::Unwrap<Mem>(info.Holder());
 
   CUresult error = cuMemFree(pmem->m_devicePtr);
 
-  return scope.Close(Number::New(error));
+  info.GetReturnValue().Set(Nan::New<Integer>(error));
 }
 
-Handle<Value> Mem::CopyHtoD(const Arguments& args) {
-  HandleScope scope;
-  Mem *pmem = ObjectWrap::Unwrap<Mem>(args.This());
+NAN_METHOD(Mem::CopyHtoD) {
+  Mem *pmem = ObjectWrap::Unwrap<Mem>(info.Holder());
 
-  Local<Object> buf = args[0]->ToObject();
+  Local<Object> buf = Nan::To<Object>(info[0]).ToLocalChecked();
   char *phost = Buffer::Data(buf);
   size_t bytes = Buffer::Length(buf);
 
-  bool async = args.Length() >= 2 && args[1]->IsTrue();
+  bool async = info.Length() >= 2 && info[1]->IsTrue();
 
   CUresult error;
   if (async) {
@@ -92,18 +90,17 @@ Handle<Value> Mem::CopyHtoD(const Arguments& args) {
     error = cuMemcpyHtoD(pmem->m_devicePtr, phost, bytes);
   }
 
-  return scope.Close(Number::New(error));
+  info.GetReturnValue().Set(Nan::New<Integer>(error));
 }
 
-Handle<Value> Mem::CopyDtoH(const Arguments& args) {
-  HandleScope scope;
-  Mem *pmem = ObjectWrap::Unwrap<Mem>(args.This());
+NAN_METHOD(Mem::CopyDtoH) {
+  Mem *pmem = ObjectWrap::Unwrap<Mem>(info.Holder());
 
-  Local<Object> buf = args[0]->ToObject();
+  Local<Object> buf = Nan::To<Object>(info[0]).ToLocalChecked();
   char *phost = Buffer::Data(buf);
   size_t bytes = Buffer::Length(buf);
 
-  bool async = args.Length() >= 2 && args[1]->IsTrue();
+  bool async = info.Length() >= 2 && info[1]->IsTrue();
 
   CUresult error;
   if (async) {
@@ -112,15 +109,14 @@ Handle<Value> Mem::CopyDtoH(const Arguments& args) {
     error = cuMemcpyDtoH(phost, pmem->m_devicePtr, bytes);
   }
 
-  return scope.Close(Number::New(error));
+  info.GetReturnValue().Set(Nan::New<Integer>(error));
 }
 
-Handle<Value> Mem::GetDevicePtr(Local<String> property, const AccessorInfo &info) {
-  HandleScope scope;
+NAN_GETTER(Mem::GetDevicePtr) {
   Mem *pmem = ObjectWrap::Unwrap<Mem>(info.Holder());
-  Buffer *ptrbuf = Buffer::New(sizeof(pmem->m_devicePtr));
+  Local<Object> buf = Nan::NewBuffer(sizeof(pmem->m_devicePtr)).ToLocalChecked();
 
-  memcpy(Buffer::Data(ptrbuf->handle_), &pmem->m_devicePtr, sizeof(pmem->m_devicePtr));
+  memcpy(Buffer::Data(buf), &(pmem->m_devicePtr), sizeof(pmem->m_devicePtr));
 
-  return scope.Close(ptrbuf->handle_);
+  info.GetReturnValue().Set(buf);
 }

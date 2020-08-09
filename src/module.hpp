@@ -8,20 +8,20 @@ namespace NodeCuda {
 
   class Module : public ObjectWrap {
     public:
-      static void Initialize(Handle<Object> target);
-      static Handle<Value> GetFunction(const Arguments& args);
+      static NAN_MODULE_INIT(Initialize);
+      static NAN_METHOD(GetFunction);
 
     protected:
-      static Persistent<FunctionTemplate> constructor_template;
+      static Nan::Persistent<FunctionTemplate> constructor;
 
-      static Handle<Value> Load(const Arguments& args);
+      static NAN_METHOD(Load);
 
       Module() : ObjectWrap(), m_module(0) {}
 
       ~Module() {}
 
     private:
-      static Handle<Value> New(const Arguments& args);
+      static NAN_METHOD(New);
 
       CUmodule m_module;
   };

@@ -7,36 +7,32 @@
 
 using namespace NodeCuda;
 
-void init (Handle<Object> target) {
-  HandleScope scope;
-
+NAN_MODULE_INIT(init) {
   // Initiailze the cuda driver api
   cuInit(0);
 
   // These methods don't need instances
-  target->SetAccessor(String::New("driverVersion"), GetDriverVersion);
-  target->SetAccessor(String::New("deviceCount"), GetDeviceCount);
+  Nan::SetAccessor(target, Nan::New("driverVersion").ToLocalChecked(), GetDriverVersion);
+  Nan::SetAccessor(target, Nan::New("deviceCount").ToLocalChecked(), GetDeviceCount);
 
   // Initialize driver api bindings
   Ctx::Initialize(target);
   Device::Initialize(target);
   NodeCuda::Function::Initialize(target);
   Mem::Initialize(target);
-  Module::Initialize(target);
+  NodeCuda::Module::Initialize(target);
 }
 
-Handle<Value> NodeCuda::GetDriverVersion(Local<String> property, const AccessorInfo &info) {
-  HandleScope scope;
+NAN_GETTER(NodeCuda::GetDriverVersion) {
   int driverVersion = 0;
   cuDriverGetVersion(&driverVersion);
-  return scope.Close(Integer::New(driverVersion));
+  info.GetReturnValue().Set(Nan::New<Integer>(driverVersion));
 }
 
-Handle<Value> NodeCuda::GetDeviceCount(Local<String> property, const AccessorInfo &info) {
-  HandleScope scope;
+NAN_GETTER(NodeCuda::GetDeviceCount) {
   int count = 0;
   cuDeviceGetCount(&count);
-  return scope.Close(Integer::New(count));
+  info.GetReturnValue().Set(Nan::New<Integer>(count));
 }
 
 NODE_MODULE(cuda, init);

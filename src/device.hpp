@@ -8,20 +8,20 @@ namespace NodeCuda {
 
   class Device : public ObjectWrap {
     public:
-      static void Initialize(Handle<Object> target);
+      static NAN_MODULE_INIT(Initialize);
 
     protected:
-      static Persistent<FunctionTemplate> constructor_template;
+      static Nan::Persistent<FunctionTemplate> constructor;
 
-      static Handle<Value> New(const Arguments& args);
-      static Handle<Value> GetComputeCapability(Local<String> property, const AccessorInfo &info);
-      static Handle<Value> GetName(Local<String> property, const AccessorInfo &info);
-      static Handle<Value> GetTotalMem(Local<String> property, const AccessorInfo &info);
+      static NAN_METHOD(New);
+      static NAN_GETTER(GetComputeCapability);
+      static NAN_GETTER(GetName);
+      static NAN_GETTER(GetTotalMem);
 
       // TODO: cuDeviceGetAttribute
       // TODO: cuDeviceGetProperties
 
-      Device() : ObjectWrap(), m_device(NULL) {}
+      Device() : ObjectWrap(), m_device(0) {}
 
       ~Device() {}
 
