@@ -7,6 +7,13 @@
 
 using namespace NodeCuda;
 
+namespace NodeCuda {
+
+  static NAN_GETTER(GetDriverVersion);
+  static NAN_GETTER(GetDeviceCount);
+
+}
+
 NAN_MODULE_INIT(init) {
   // Initiailze the cuda driver api
   cuInit(0);

@@ -8,11 +8,4 @@
 using namespace v8;
 using namespace node;
 
-namespace NodeCuda {
-
-  static NAN_GETTER(GetDriverVersion);
-  static NAN_GETTER(GetDeviceCount);
-
-}
-
 #endif

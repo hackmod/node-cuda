@@ -138,7 +138,7 @@ void Ctx::After(uv_work_t* work_req, int status) {
   argv[0] = Nan::New<Integer>(params->error);
 
   Nan::TryCatch try_catch;
-  params->cb->Call(1, argv);
+  params->cb->Call(1, argv, NULL);
   if (try_catch.HasCaught()) FatalException(try_catch);
 
   uv_unref((uv_handle_t*) work_req);
@@ -151,5 +151,9 @@ NAN_GETTER(Ctx::GetApiVersion) {
   unsigned int version;
   CUresult error = cuCtxGetApiVersion(pctx->m_context, &version);
 
-  info.GetReturnValue().Set(Nan::New<Integer>(version));
+  if (error != 0) {
+    info.GetReturnValue().Set(Nan::New<Integer>(version));
+  } else {
+    info.GetReturnValue().Set(Nan::New<Integer>(error));
+  }
 }
