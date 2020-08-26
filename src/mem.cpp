@@ -1,122 +1,129 @@
 #include <cstring>
 #include <stdio.h>
 #include "mem.hpp"
+#include "types.h"
+#include "common.h"
 
 using namespace NodeCuda;
 
-Nan::Persistent<FunctionTemplate> Mem::constructor;
-
-NAN_MODULE_INIT(Mem::Initialize) {
-  Local<FunctionTemplate> t = Nan::New<FunctionTemplate>(Mem::New);
-  t->InstanceTemplate()->SetInternalFieldCount(1);
-  t->SetClassName(Nan::New("CudaMem").ToLocalChecked());
-
-  // Mem objects can only be created by allocation functions
-  Nan::SetMethod(target, "memAlloc", Mem::Alloc);
-  Nan::SetMethod(target, "memAllocPitch", Mem::AllocPitch);
-
-  Nan::SetAccessor(t->InstanceTemplate(), Nan::New("devicePtr").ToLocalChecked(), Mem::GetDevicePtr);
-
-  Nan::SetPrototypeMethod(t, "free", Mem::Free);
-  Nan::SetPrototypeMethod(t, "copyHtoD", Mem::CopyHtoD);
-  Nan::SetPrototypeMethod(t, "copyDtoH", Mem::CopyDtoH);
-
-  target->Set(Nan::New("Mem").ToLocalChecked(), t->GetFunction());
-  Mem::constructor.Reset(t);
-}
-
-NAN_METHOD(Mem::New) {
-  if (info.IsConstructCall()) {
-    Mem *pmem = new Mem();
-    pmem->Wrap(info.This());
-
-    info.GetReturnValue().Set(info.This());
-  }
-}
-
-NAN_METHOD(Mem::Alloc) {
-  Local<Object> result = Nan::New<FunctionTemplate>(Mem::constructor)->InstanceTemplate()->NewInstance();
-  Mem *pmem = new Mem();
-  pmem->Wrap(result);
-
+NAN_METHOD(MemAlloc) {
   size_t bytesize = Nan::To<uint32_t>(info[0]).ToChecked();
-  CUresult error = cuMemAlloc(&(pmem->m_devicePtr), bytesize);
+  CUdeviceptr devicePtr;
+  CUresult error = cuMemAlloc(&devicePtr, bytesize);
 
-  result->Set(Nan::New("size").ToLocalChecked(), Nan::New<Integer>(static_cast<uint32_t>(bytesize)));
-  result->Set(Nan::New("error").ToLocalChecked(), Nan::New<Integer>(error));
-
-  info.GetReturnValue().Set(result);
+  CHECK_ERR(error);
+  info.GetReturnValue().Set(NOCU_WRAP(NodeCUDeviceptr, devicePtr));
 }
 
-NAN_METHOD(Mem::AllocPitch) {
-  Local<Object> result = Nan::New<FunctionTemplate>(Mem::constructor)->InstanceTemplate()->NewInstance();
-  Mem *pmem = new Mem();
-  pmem->Wrap(result);
-
+NAN_METHOD(MemAllocPitch) {
   size_t pPitch;
   unsigned int ElementSizeBytes = Nan::To<uint32_t>(info[2]).ToChecked();
   size_t WidthInBytes = ElementSizeBytes * Nan::To<uint32_t>(info[0]).ToChecked();
   size_t Height = Nan::To<uint32_t>(info[1]).ToChecked();
-  CUresult error = cuMemAllocPitch(&(pmem->m_devicePtr), &pPitch, WidthInBytes, Height, ElementSizeBytes);
 
-  result->Set(Nan::New("size").ToLocalChecked(), Nan::New<Integer>(static_cast<uint32_t>(pPitch * Height)));
-  result->Set(Nan::New("pitch").ToLocalChecked(), Nan::New<Integer>(static_cast<uint32_t>(pPitch)));
-  result->Set(Nan::New("error").ToLocalChecked(), Nan::New<Integer>(error));
+  CUdeviceptr devicePtr;
+  CUresult error = cuMemAllocPitch(&devicePtr, &pPitch, WidthInBytes, Height, ElementSizeBytes);
 
-  info.GetReturnValue().Set(result);
+  CHECK_ERR(error);
+  info.GetReturnValue().Set(NOCU_WRAP(NodeCUDeviceptr, devicePtr));
 }
 
-NAN_METHOD(Mem::Free) {
-  Mem *pmem = ObjectWrap::Unwrap<Mem>(info.Holder());
+NAN_METHOD(MemFree) {
+  REQ_ARGS(1);
 
-  CUresult error = cuMemFree(pmem->m_devicePtr);
+  CUdeviceptr devicePtr = Nan::To<uint32_t>(info[0]).ToChecked();
+
+  CUresult error = cuMemFree(devicePtr);
 
   info.GetReturnValue().Set(Nan::New<Integer>(error));
 }
 
-NAN_METHOD(Mem::CopyHtoD) {
-  Mem *pmem = ObjectWrap::Unwrap<Mem>(info.Holder());
+NAN_METHOD(MemcpyHtoD) {
+  REQ_ARGS(2);
 
-  Local<Object> buf = Nan::To<Object>(info[0]).ToLocalChecked();
+  NOCU_UNWRAP(devicePtr, NodeCUDeviceptr, info[0]);
+
+  Local<Object> buf = Nan::To<Object>(info[1]).ToLocalChecked();
   char *phost = Buffer::Data(buf);
   size_t bytes = Buffer::Length(buf);
 
-  bool async = info.Length() >= 2 && info[1]->IsTrue();
+  bool async = info.Length() >= 3 && info[2]->IsTrue();
 
   CUresult error;
   if (async) {
-    error = cuMemcpyHtoDAsync(pmem->m_devicePtr, phost, bytes, 0);
+    error = cuMemcpyHtoDAsync(devicePtr->getRaw(), phost, bytes, 0);
   } else {
-    error = cuMemcpyHtoD(pmem->m_devicePtr, phost, bytes);
+    error = cuMemcpyHtoD(devicePtr->getRaw(), phost, bytes);
   }
 
   info.GetReturnValue().Set(Nan::New<Integer>(error));
 }
 
-NAN_METHOD(Mem::CopyDtoH) {
-  Mem *pmem = ObjectWrap::Unwrap<Mem>(info.Holder());
+NAN_METHOD(MemcpyDtoH) {
+  REQ_ARGS(2);
 
   Local<Object> buf = Nan::To<Object>(info[0]).ToLocalChecked();
+
+  NOCU_UNWRAP(devicePtr, NodeCUDeviceptr, info[1]);
+
   char *phost = Buffer::Data(buf);
   size_t bytes = Buffer::Length(buf);
 
-  bool async = info.Length() >= 2 && info[1]->IsTrue();
+  bool async = info.Length() >= 3 && info[2]->IsTrue();
 
   CUresult error;
   if (async) {
-    error = cuMemcpyDtoHAsync(phost, pmem->m_devicePtr, bytes, 0);
+    error = cuMemcpyDtoHAsync(phost, devicePtr->getRaw(), bytes, 0);
   } else {
-    error = cuMemcpyDtoH(phost, pmem->m_devicePtr, bytes);
+    error = cuMemcpyDtoH(phost, devicePtr->getRaw(), bytes);
   }
 
   info.GetReturnValue().Set(Nan::New<Integer>(error));
 }
 
-NAN_GETTER(Mem::GetDevicePtr) {
-  Mem *pmem = ObjectWrap::Unwrap<Mem>(info.Holder());
-  Local<Object> buf = Nan::NewBuffer(sizeof(pmem->m_devicePtr)).ToLocalChecked();
+NAN_METHOD(MemcpyDtoD) {
+  REQ_ARGS(3);
 
-  memcpy(Buffer::Data(buf), &(pmem->m_devicePtr), sizeof(pmem->m_devicePtr));
+  NOCU_UNWRAP(dst, NodeCUDeviceptr, info[0]);
+  NOCU_UNWRAP(src, NodeCUDeviceptr, info[1]);
 
-  info.GetReturnValue().Set(buf);
+  size_t size = (size_t)Nan::To<int64_t>(info[2]).FromJust();
+
+  bool async = info.Length() >= 4 && info[3]->IsTrue();
+
+  CUresult error;
+  if (async) {
+    error = cuMemcpyDtoDAsync(dst->getRaw(), src->getRaw(), size, 0);
+  } else {
+    error = cuMemcpyDtoD(dst->getRaw(), src->getRaw(), size);
+  }
+
+  info.GetReturnValue().Set(Nan::New<Integer>(error));
+}
+
+NAN_METHOD(MemcpyAtoA) {
+  REQ_ARGS(5);
+
+  NOCU_UNWRAP(dst, NodeCUArray, info[0]);
+  size_t dstOffset = (size_t)Nan::To<int64_t>(info[1]).FromJust();
+
+  NOCU_UNWRAP(src, NodeCUArray, info[2]);
+  size_t srcOffset = (size_t)Nan::To<int64_t>(info[3]).FromJust();
+
+  size_t byteCount = (size_t)Nan::To<int64_t>(info[4]).FromJust();
+
+  CUresult error = cuMemcpyAtoA(dst->getRaw(), dstOffset, src->getRaw(), srcOffset, byteCount);
+
+  info.GetReturnValue().Set(Nan::New<Integer>(error));
+}
+
+NAN_MODULE_INIT(Mem::Initialize) {
+  // NodeCUdevicePtr objects can only be created by allocation functions
+  Nan::SetMethod(target, "memAlloc", MemAlloc);
+  Nan::SetMethod(target, "memAllocPitch", MemAllocPitch);
+  Nan::SetMethod(target, "memFree", MemFree);
+  Nan::SetMethod(target, "memcpyHtoD", MemcpyHtoD);
+  Nan::SetMethod(target, "memcpyDtoH", MemcpyDtoH);
+  Nan::SetMethod(target, "memcpyAtoA", MemcpyAtoA);
+  Nan::SetMethod(target, "memcpyDtoD", MemcpyDtoD);
 }

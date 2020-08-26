@@ -1,45 +1,31 @@
 #include <cstring>
 #include <cstdio>
 #include "function.hpp"
-#include "mem.hpp"
+#include "types.h"
 
 using namespace NodeCuda;
 
-Nan::Persistent<FunctionTemplate> NodeCuda::Function::constructor;
+NAN_METHOD(LaunchKernel) {
+  Nan::HandleScope scope;
 
-NAN_MODULE_INIT(NodeCuda::Function::Initialize) {
-  Local<FunctionTemplate> t = Nan::New<FunctionTemplate>(NodeCuda::Function::New);
-  t->InstanceTemplate()->SetInternalFieldCount(1);
-  t->SetClassName(Nan::New("CudaFunction").ToLocalChecked());
+  REQ_ARGS(4);
+  NOCU_UNWRAP(function, NodeCUFunction, info[0]);
 
-  Nan::SetPrototypeMethod(t, "launchKernel", NodeCuda::Function::LaunchKernel);
-
-  target->Set(Nan::New("Function").ToLocalChecked(), t->GetFunction());
-  NodeCuda::Function::constructor.Reset(t);
-  // Function objects can only be created by cuModuleGetFunction
-}
-
-NAN_METHOD(NodeCuda::Function::New) {
-  NodeCuda::Function *pfunction = new NodeCuda::Function();
-  pfunction->Wrap(info.Holder());
-
-  info.GetReturnValue().Set(info.Holder());
-}
-
-NAN_METHOD(NodeCuda::Function::LaunchKernel) {
-  Function *pfunction = ObjectWrap::Unwrap<Function>(info.Holder());
-
-  Local<Array> gridDim = Local<Array>::Cast(info[0]);
+  Local<Array> gridDim = Local<Array>::Cast(info[1]);
   unsigned int gridDimX = Nan::To<uint32_t>(gridDim->Get(0)).ToChecked();
   unsigned int gridDimY = Nan::To<uint32_t>(gridDim->Get(1)).ToChecked();
   unsigned int gridDimZ = Nan::To<uint32_t>(gridDim->Get(2)).ToChecked();
 
-  Local<Array> blockDim = Local<Array>::Cast(info[1]);
+  Local<Array> blockDim = Local<Array>::Cast(info[2]);
   unsigned int blockDimX = Nan::To<uint32_t>(blockDim->Get(0)).ToChecked();
   unsigned int blockDimY = Nan::To<uint32_t>(blockDim->Get(1)).ToChecked();
   unsigned int blockDimZ = Nan::To<uint32_t>(blockDim->Get(2)).ToChecked();
 
-  Local<Object> buf = Nan::To<Object>(info[2]).ToLocalChecked();
+  NOCU_UNWRAP(devicePtr, NodeCUDeviceptr, info[3]);
+  CUdeviceptr deviceptr = devicePtr->getRaw();
+
+  Local<Object> buf = Nan::NewBuffer(sizeof(deviceptr)).ToLocalChecked();
+  memcpy(Buffer::Data(buf), &deviceptr, sizeof(deviceptr));
   char *pbuffer = Buffer::Data(buf);
   size_t bufferSize = Buffer::Length(buf);
 
@@ -49,11 +35,16 @@ NAN_METHOD(NodeCuda::Function::LaunchKernel) {
     CU_LAUNCH_PARAM_END
   };
 
-  CUresult error = cuLaunchKernel(pfunction->m_function,
+  CUresult error = cuLaunchKernel(function->getRaw(),
       gridDimX, gridDimY, gridDimZ,
       blockDimX, blockDimY, blockDimZ,
       0, 0, NULL, cuExtra);
 
+  CHECK_ERR(error);
+
   info.GetReturnValue().Set(Nan::New<Integer>(error));
 }
 
+NAN_MODULE_INIT(NodeCuda::Function::Initialize) {
+  Nan::SetMethod(target, "launchKernel", LaunchKernel);
+}

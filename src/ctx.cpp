@@ -1,83 +1,86 @@
 #include "ctx.hpp"
 #include "device.hpp"
+#include "types.h"
 
 using namespace NodeCuda;
 
-Nan::Persistent<FunctionTemplate> Ctx::constructor;
-
-NAN_MODULE_INIT(Ctx::Initialize) {
-  Local<FunctionTemplate> t = Nan::New<FunctionTemplate>(Ctx::New);
-  t->InstanceTemplate()->SetInternalFieldCount(1);
-  t->SetClassName(Nan::New("CudaCtx").ToLocalChecked());
-
-  Nan::SetPrototypeMethod(t, "destroy", Ctx::Destroy);
-  Nan::SetPrototypeMethod(t, "pushCurrent", Ctx::PushCurrent);
-  Nan::SetPrototypeMethod(t, "popCurrent", Ctx::PopCurrent);
-  Nan::SetPrototypeMethod(t, "setCurrent", Ctx::SetCurrent);
-  Nan::SetPrototypeMethod(t, "getCurrent", Ctx::GetCurrent);
-  Nan::SetPrototypeMethod(t, "synchronize", Ctx::Synchronize);
-  Nan::SetAccessor(t->InstanceTemplate(), Nan::New("apiVersion").ToLocalChecked(), Ctx::GetApiVersion);
-
-  target->Set(Nan::New("Ctx").ToLocalChecked(), t->GetFunction());
-  constructor.Reset(t);
-}
-
-NAN_METHOD(Ctx::New) {
-  Ctx *pctx = new Ctx();
-  pctx->Wrap(info.Holder());
+NAN_METHOD(CtxCreate) {
+  REQ_ARGS(2);
 
   unsigned int flags = Nan::To<uint32_t>(info[0]).ToChecked();
-  pctx->m_device = ObjectWrap::Unwrap<Device>(Nan::To<Object>(info[1]).ToLocalChecked())->m_device;
+  CUdevice device = Nan::To<int32_t>(info[1]).ToChecked();
 
-  cuCtxCreate(&(pctx->m_context), flags, pctx->m_device);
+  CUcontext context;
+  cuCtxCreate(&context, flags, device);
 
-  info.GetReturnValue().Set(info.Holder());
+  info.GetReturnValue().Set(NOCU_WRAP(NodeCUContext, context));
 }
 
-NAN_METHOD(Ctx::Destroy) {
-  Ctx *pctx = ObjectWrap::Unwrap<Ctx>(info.Holder());
+NAN_METHOD(CtxDestroy) {
+  REQ_ARGS(1);
 
-  CUresult error = cuCtxDestroy(pctx->m_context);
+  NOCU_UNWRAP(context, NodeCUContext, info[0]);
+
+  CUresult error = cuCtxDestroy(context->getRaw());
+
+  CHECK_ERR(error);
   info.GetReturnValue().Set(Nan::New<Integer>(error));
 }
 
-NAN_METHOD(Ctx::PushCurrent) {
-  Ctx *pctx = ObjectWrap::Unwrap<Ctx>(info.Holder());
+NAN_METHOD(CtxPushCurrent) {
+  REQ_ARGS(1);
 
-  CUresult error = cuCtxPushCurrent(pctx->m_context);
+  NOCU_UNWRAP(context, NodeCUContext, info[0]);
+
+  CUresult error = cuCtxPushCurrent(context->getRaw());
+
+  CHECK_ERR(error);
   info.GetReturnValue().Set(Nan::New<Integer>(error));
 }
 
-NAN_METHOD(Ctx::PopCurrent) {
-  Ctx *pctx = ObjectWrap::Unwrap<Ctx>(info.Holder());
+NAN_METHOD(CtxPopCurrent) {
+  CUcontext context;
+  CUresult error = cuCtxPopCurrent(&context);
 
-  CUresult error = cuCtxPopCurrent(&(pctx->m_context));
+  CHECK_ERR(error);
+  info.GetReturnValue().Set(NOCU_WRAP(NodeCUContext, context));
+}
+
+NAN_METHOD(CtxSetCurrent) {
+  REQ_ARGS(1);
+
+  NOCU_UNWRAP(context, NodeCUContext, info[0]);
+
+  CUresult error = cuCtxSetCurrent(context->getRaw());
+
+  CHECK_ERR(error);
   info.GetReturnValue().Set(Nan::New<Integer>(error));
 }
 
-NAN_METHOD(Ctx::SetCurrent) {
-  Ctx *pctx = ObjectWrap::Unwrap<Ctx>(info.Holder());
+NAN_METHOD(CtxGetCurrent) {
+  CUcontext context;
+  CUresult error = cuCtxGetCurrent(&context);
 
-  CUresult error = cuCtxSetCurrent(pctx->m_context);
-  info.GetReturnValue().Set(Nan::New<Integer>(error));
-}
-
-NAN_METHOD(Ctx::GetCurrent) {
-  Ctx *pctx = ObjectWrap::Unwrap<Ctx>(info.Holder());
-
-  CUresult error = cuCtxGetCurrent(&(pctx->m_context));
-  info.GetReturnValue().Set(Nan::New<Integer>(error));
+  CHECK_ERR(error);
+  info.GetReturnValue().Set(NOCU_WRAP(NodeCUContext, context));
 }
 
 struct SynchronizeParams {
-  Ctx *ctx;
+  //Ctx *ctx;
+  CUcontext *ctx;
   CUresult error;
   Nan::Callback *cb;
 };
 
-NAN_METHOD(Ctx::Synchronize) {
+NAN_METHOD(CtxSynchronize) {
+  CUresult error = cuCtxSynchronize();
+  info.GetReturnValue().Set(Nan::New<Integer>(error));
+
+  /*
   if (info.Length() >= 1 && info[0]->IsFunction()) {
     // Asynchronous
+
+    NOCU_UNWRAP(ctx, NodeCUContext, info[1]);
 
     Ctx *ctx = ObjectWrap::Unwrap<Ctx>(info.Holder());
     if (ctx->sync_in_progress) {
@@ -109,9 +112,11 @@ NAN_METHOD(Ctx::Synchronize) {
     CUresult error = cuCtxSynchronize();
     info.GetReturnValue().Set(Nan::New<Integer>(error));
   }
+  */
 }
 
-void Ctx::Process(uv_work_t* work_req) {
+/*
+void Process(uv_work_t* work_req) {
   SynchronizeParams *params = static_cast<SynchronizeParams*>(work_req->data);
 
   params->error = cuCtxPushCurrent(params->ctx->m_context);
@@ -123,7 +128,7 @@ void Ctx::Process(uv_work_t* work_req) {
   params->error = cuCtxPopCurrent(NULL);
 }
 
-void Ctx::After(uv_work_t* work_req, int status) {
+void After(uv_work_t* work_req, int status) {
   Nan::HandleScope scope;
 
   assert(status == 0);
@@ -144,16 +149,27 @@ void Ctx::After(uv_work_t* work_req, int status) {
   uv_unref((uv_handle_t*) work_req);
   delete params;
 }
+*/
 
-NAN_GETTER(Ctx::GetApiVersion) {
-  Ctx *pctx = ObjectWrap::Unwrap<Ctx>(info.Holder());
+NAN_METHOD(CtxGetApiVersion) {
+  REQ_ARGS(1);
+
+  NOCU_UNWRAP(context, NodeCUContext, info[0]);
 
   unsigned int version;
-  CUresult error = cuCtxGetApiVersion(pctx->m_context, &version);
+  CUresult error = cuCtxGetApiVersion(context->getRaw(), &version);
 
-  if (error != 0) {
-    info.GetReturnValue().Set(Nan::New<Integer>(version));
-  } else {
-    info.GetReturnValue().Set(Nan::New<Integer>(error));
-  }
+  CHECK_ERR(error);
+  info.GetReturnValue().Set(Nan::New<Integer>(version));
+}
+
+NAN_MODULE_INIT(Ctx::Initialize) {
+  Nan::SetMethod(target, "ctxCreate", CtxCreate);
+  Nan::SetMethod(target, "ctxDestroy", CtxDestroy);
+  Nan::SetMethod(target, "ctxPushCurrent", CtxPushCurrent);
+  Nan::SetMethod(target, "ctxPopCurrent", CtxPopCurrent);
+  Nan::SetMethod(target, "ctxSetCurrent", CtxSetCurrent);
+  Nan::SetMethod(target, "ctxGetCurrent", CtxGetCurrent);
+  Nan::SetMethod(target, "ctxSynchronize", CtxSynchronize);
+  Nan::SetMethod(target, "ctxGetApiVersion", CtxGetApiVersion);
 }

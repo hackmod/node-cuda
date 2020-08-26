@@ -6,30 +6,9 @@
 
 namespace NodeCuda {
 
-  class Device : public ObjectWrap {
-    public:
-      static NAN_MODULE_INIT(Initialize);
-
-    protected:
-      static Nan::Persistent<FunctionTemplate> constructor;
-
-      static NAN_METHOD(New);
-      static NAN_GETTER(GetComputeCapability);
-      static NAN_GETTER(GetName);
-      static NAN_GETTER(GetTotalMem);
-
-      // TODO: cuDeviceGetAttribute
-      // TODO: cuDeviceGetProperties
-
-      Device() : ObjectWrap(), m_device(0) {}
-
-      ~Device() {}
-
-    private:
-      CUdevice m_device;
-
-      friend class Ctx;
-  };
+  namespace Device {
+    NAN_MODULE_INIT(Initialize);
+  } // namespace Device
 
 }
 

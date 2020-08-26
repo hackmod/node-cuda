@@ -3,6 +3,8 @@
     {
       "target_name": "cuda",
       "sources": [
+        "src/common.cpp",
+        "src/types.cpp",
         "src/bindings.cpp",
         "src/ctx.cpp",
         "src/device.cpp",
@@ -45,7 +47,6 @@
           ],
         }, {
           "include_dirs": [
-            "/usr/local/cuda-5.0/include",
             "/usr/local/cuda/include"
           ],
         }]

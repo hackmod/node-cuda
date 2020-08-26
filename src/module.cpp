@@ -1,59 +1,72 @@
 #include "module.hpp"
 #include "function.hpp"
+#include "common.h"
+#include "types.h"
 
-using namespace NodeCuda;
+namespace NodeCuda {
 
-Nan::Persistent<FunctionTemplate> NodeCuda::Module::constructor;
-
-NAN_MODULE_INIT(NodeCuda::Module::Initialize) {
-  Local<FunctionTemplate> t = Nan::New<FunctionTemplate>(NodeCuda::Module::New);
-  t->InstanceTemplate()->SetInternalFieldCount(1);
-  t->SetClassName(Nan::New("CudaModule").ToLocalChecked());
-
-  // Module objects can only be created by load functions
-  Nan::SetMethod(target, "moduleLoad", NodeCuda::Module::Load);
-
-  Nan::SetPrototypeMethod(t, "getFunction", NodeCuda::Module::GetFunction);
-
-  target->Set(Nan::New("Module").ToLocalChecked(), t->GetFunction());
-  NodeCuda::Module::constructor.Reset(t);
-}
-
-NAN_METHOD(NodeCuda::Module::New) {
-  NodeCuda::Module *pmodule = new NodeCuda::Module();
-  pmodule->Wrap(info.Holder());
-
-  info.GetReturnValue().Set(info.Holder());
-}
-
-NAN_METHOD(NodeCuda::Module::Load) {
-  Local<Object> result = Nan::New<FunctionTemplate>(NodeCuda::Module::constructor)->InstanceTemplate()->NewInstance();
-  NodeCuda::Module *pmodule = new NodeCuda::Module();
-  pmodule->Wrap(result);
-  //NodeCuda::Module *pmodule = ObjectWrap::Unwrap<NodeCuda::Module>(result);
+NAN_METHOD(ModuleLoad) {
+  REQ_ARGS(1);
 
   Nan::Utf8String fname(info[0]);
-  CUresult error = cuModuleLoad(&(pmodule->m_module), *fname);
 
-  result->Set(Nan::New("fname").ToLocalChecked(), Nan::To<String>(info[0]).ToLocalChecked());
-  result->Set(Nan::New("error").ToLocalChecked(), Nan::New<Integer>(error));
+  CUmodule module;
+  CUresult error = cuModuleLoad(&module, *fname);
 
-  info.GetReturnValue().Set(result);
+  CHECK_ERR(error);
+  info.GetReturnValue().Set(NOCU_WRAP(NodeCUModule, module));
 }
 
-NAN_METHOD(NodeCuda::Module::GetFunction) {
-  Local<Object> result = Nan::New<FunctionTemplate>(NodeCuda::Function::constructor)->InstanceTemplate()->NewInstance();
-  NodeCuda::Module *pmodule = ObjectWrap::Unwrap<NodeCuda::Module>(info.Holder());
-  NodeCuda::Function *pfunction = new NodeCuda::Function();
-  pfunction->Wrap(result);
-  //NodeCuda::Function *pfunction = ObjectWrap::Unwrap<NodeCuda::Function>(result);
+NAN_METHOD(ModuleUnload) {
+  REQ_ARGS(1);
 
-  Nan::Utf8String name(info[0]);
-  CUresult error = cuModuleGetFunction(&pfunction->m_function, pmodule->m_module, *name);
+  NOCU_UNWRAP(module, NodeCUModule, info[0]);
 
-  result->Set(Nan::New("name").ToLocalChecked(), Nan::To<String>(info[0]).ToLocalChecked());
-  result->Set(Nan::New("error").ToLocalChecked(), Nan::New<Integer>(error));
+  CUresult error = cuModuleUnload(module->getRaw());
 
-  info.GetReturnValue().Set(result);
+  CHECK_ERR(error);
+  info.GetReturnValue().Set(Nan::New<Integer>(error));
 }
 
+NAN_METHOD(ModuleGetFunction) {
+  REQ_ARGS(2);
+
+  NOCU_UNWRAP(module, NodeCUModule, info[0]);
+
+  Nan::Utf8String name(info[1]);
+
+  CUfunction function;
+  CUresult error = cuModuleGetFunction(&function, module->getRaw(), *name);
+
+  CHECK_ERR(error);
+  info.GetReturnValue().Set(NOCU_WRAP(NodeCUFunction, function));
+}
+
+NAN_METHOD(ModuleGetGlobal) {
+  REQ_ARGS(2);
+
+  NOCU_UNWRAP(module, NodeCUModule, info[0]);
+
+  Nan::Utf8String name(info[1]);
+
+  CUdeviceptr dptr;
+  size_t bytes;
+  CUresult error = cuModuleGetGlobal(&dptr, &bytes, module->getRaw(), *name);
+  CHECK_ERR(error);
+
+  if (info.Length() >= 3 && !info[2]->IsUndefined()) {
+    Local<Object> obj = Nan::To<Object>(info[2]).ToLocalChecked();
+    Nan::Set(obj, 0, Nan::New<Integer>(static_cast<int32_t>(bytes))); // FIXME
+  }
+  info.GetReturnValue().Set(NOCU_WRAP(NodeCUDeviceptr, dptr));
+}
+
+NAN_MODULE_INIT(Module::Initialize) {
+  // Module objects can only be created by load functions
+  Nan::SetMethod(target, "moduleLoad", ModuleLoad);
+  Nan::SetMethod(target, "moduleUnload", ModuleUnload);
+  Nan::SetMethod(target, "moduleGetFunction", ModuleGetFunction);
+  Nan::SetMethod(target, "moduleGetGlobal", ModuleGetGlobal);
+}
+
+}  // namespace NodeCuda

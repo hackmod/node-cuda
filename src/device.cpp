@@ -1,21 +1,6 @@
 #include "device.hpp"
 
-using namespace NodeCuda;
-
-Nan::Persistent<FunctionTemplate> Device::constructor;
-
-NAN_MODULE_INIT(Device::Initialize) {
-  Local<FunctionTemplate> t = Nan::New<FunctionTemplate>(Device::New);
-  t->InstanceTemplate()->SetInternalFieldCount(1);
-  t->SetClassName(Nan::New("CudaDevice").ToLocalChecked());
-
-  Nan::SetAccessor(t->InstanceTemplate(), Nan::New("name").ToLocalChecked(), Device::GetName);
-  Nan::SetAccessor(t->InstanceTemplate(), Nan::New("totalMem").ToLocalChecked(), Device::GetTotalMem);
-  Nan::SetAccessor(t->InstanceTemplate(), Nan::New("computeCapability").ToLocalChecked(), Device::GetComputeCapability);
-
-  target->Set(Nan::New("Device").ToLocalChecked(), t->GetFunction());
-  Device::constructor.Reset(t);
-}
+namespace NodeCuda {
 
 static Handle<Value> GetName_(CUdevice device) {
   char deviceName[256];
@@ -25,25 +10,20 @@ static Handle<Value> GetName_(CUdevice device) {
   return result;
 }
 
-NAN_METHOD(Device::New) {
-  Local<Object> result = info.Holder();
+NAN_METHOD(DeviceGet) {
   int ordinal = Nan::To<int32_t>(info[0]).ToChecked();
 
-  if (!Nan::New(Device::constructor)->HasInstance(result)) {
-    result = Nan::New<FunctionTemplate>(Device::constructor)->InstanceTemplate()->NewInstance();
-  }
+  CUdevice device;
+  cuDeviceGet(&device, ordinal);
 
-  Device *pdevice = new Device();
-  cuDeviceGet(&(pdevice->m_device), ordinal);
-
-  pdevice->Wrap(result);
-  info.GetReturnValue().Set(result);
+  info.GetReturnValue().Set(Nan::New<Integer>(static_cast<uint32_t>(device)));
 }
 
-NAN_GETTER(Device::GetComputeCapability) {
-  Device *pdevice = ObjectWrap::Unwrap<Device>(info.Holder());
+NAN_METHOD(ComputeCapability) {
+  CUdevice device = Nan::To<uint32_t>(info[0]).ToChecked();
+
   int major = 0, minor = 0;
-  cuDeviceComputeCapability(&major, &minor, pdevice->m_device);
+  cuDeviceComputeCapability(&major, &minor, device);
 
   Local<Object> result = Nan::New<Object>();
   result->Set(Nan::New("major").ToLocalChecked(), Nan::New<Integer>(major));
@@ -51,15 +31,24 @@ NAN_GETTER(Device::GetComputeCapability) {
   info.GetReturnValue().Set(result);
 }
 
-NAN_GETTER(Device::GetName) {
-  Device *pdevice = ObjectWrap::Unwrap<Device>(info.Holder());
-  info.GetReturnValue().Set(GetName_(pdevice->m_device));
+NAN_METHOD(GetName) {
+  CUdevice device = Nan::To<uint32_t>(info[0]).ToChecked();
+  info.GetReturnValue().Set(GetName_(device));
 }
 
-NAN_GETTER(Device::GetTotalMem) {
-  Device *pdevice = ObjectWrap::Unwrap<Device>(info.Holder());
+NAN_METHOD(TotalMem) {
+  CUdevice device = Nan::To<uint32_t>(info[0]).ToChecked();
   size_t totalGlobalMem;
-  cuDeviceTotalMem(&totalGlobalMem, pdevice->m_device);
+  cuDeviceTotalMem(&totalGlobalMem, device);
 
   info.GetReturnValue().Set(Nan::New<Integer>(static_cast<uint32_t>(totalGlobalMem)));
 }
+
+NAN_MODULE_INIT(Device::Initialize) {
+  Nan::SetMethod(target, "deviceGet", DeviceGet);
+  Nan::SetMethod(target, "deviceComputeCapability", ComputeCapability);
+  Nan::SetMethod(target, "deviceGetName", GetName);
+  Nan::SetMethod(target, "deviceTotalMem", TotalMem);
+}
+
+}  // namespace NodeCuda
