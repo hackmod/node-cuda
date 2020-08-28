@@ -1,15 +1,20 @@
 {
-  "name": "cuda",
-  "version": "0.1.0",
+  "name": "node-cuda",
+  "version": "0.5.0",
   "description": "NVIDIA CUDA™ bindings for Node.js",
   "keywords": [
     "NVIDIA",
     "CUDA",
     "GPU"
   ],
-  "homepage": "http://github.com/kashif/node-cuda",
-  "author": "Kashif Rasul <kashif@nomad-labs.com> (http://hpc.nomad-labs.com)",
+  "homepage": "http://github.com/hackmod/node-cuda",
+  "author": "hackyminer <hackyminer@gmail.com>",
   "contributors": [
+    {
+      "name": "Kashif Rasul",
+      "email": "kashif@nomad-labs.com",
+      "url": "http://github.com/kashif/node-cuda"
+    },
     {
       "name": "Jitu Das",
       "email": "jitudas@gmail.com"
@@ -21,16 +26,18 @@
     "test": "test"
   },
   "scripts": {
-    "preinstall": "node-gyp clean || true; node-gyp configure build",
-    "install": "node-gyp rebuild",
+    "build": "node-gyp rebuild",
     "test": "node test/test.js"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/kashif/node-cuda.git"
+    "url": "git://github.com/hackmod/node-cuda.git"
   },
   "license": "MIT",
   "dependencies": {
     "nan": "^2.14.1"
+  },
+  "devDependencies": {
+    "bindings": "^1.5.0"
   }
 }
