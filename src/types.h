@@ -14,6 +14,7 @@
 
 using namespace std;
 using namespace v8;
+using namespace node;
 
 namespace NodeCuda {
 
@@ -37,6 +38,7 @@ public:
     Local<FunctionTemplate> tpl = Nan::New<FunctionTemplate>(New);
     tpl->InstanceTemplate()->SetInternalFieldCount(1);
     Nan::SetPrototypeMethod(tpl, "toString", toString);
+    Nan::SetPrototypeMethod(tpl, "getRaw", GetRaw);
     prototype(id).Reset(tpl);
     constructor(id).Reset(Nan::GetFunction(tpl).ToLocalChecked());
   }
@@ -122,6 +124,15 @@ private:
     }
     ss << "[object " << cu_type_names[id] << "@" << obj->raw << "]";
     info.GetReturnValue().Set(Nan::New<String>(ss.str()).ToLocalChecked());
+  }
+
+  static NAN_METHOD(GetRaw) {
+    NodeCUWrapper<T, id, err, cu_release, cu_acquire> *obj = Unwrap(info.Holder());
+    Local<Object> buf = Nan::NewBuffer(sizeof(obj->raw)).ToLocalChecked();
+
+    memcpy(Buffer::Data(buf), &(obj->raw), sizeof(obj->raw));
+
+    info.GetReturnValue().Set(buf);
   }
 
   T raw = nullptr;

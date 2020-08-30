@@ -21,11 +21,7 @@ NAN_METHOD(LaunchKernel) {
   unsigned int blockDimY = Nan::To<uint32_t>(blockDim->Get(1)).ToChecked();
   unsigned int blockDimZ = Nan::To<uint32_t>(blockDim->Get(2)).ToChecked();
 
-  NOCU_UNWRAP(devicePtr, NodeCUDeviceptr, info[3]);
-  CUdeviceptr deviceptr = devicePtr->getRaw();
-
-  Local<Object> buf = Nan::NewBuffer(sizeof(deviceptr)).ToLocalChecked();
-  memcpy(Buffer::Data(buf), &deviceptr, sizeof(deviceptr));
+  Local<Object> buf = Nan::To<Object>(info[3]).ToLocalChecked();
   char *pbuffer = Buffer::Data(buf);
   size_t bufferSize = Buffer::Length(buf);
 
