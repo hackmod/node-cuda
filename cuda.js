@@ -83,5 +83,5 @@ module.exports.launch = function () {
 
   args = module.exports.prepareArguments(args);
 
-  return func.launchKernel(gridDim, blockDim, args);
+  return module.exports.launchKernel(func, gridDim, blockDim, args);
 }

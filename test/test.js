@@ -1,5 +1,5 @@
 var Buffer = require('buffer').Buffer;
-var cu = require('bindings')('cuda');
+var cu = require('../cuda');
 
 //cuDriverGetVersion
 //cuDeviceGetCount
@@ -44,18 +44,27 @@ var error = cu.memcpyHtoD(cuMem, buf);
 console.log("Copied buffer to device:", error);
 
 //cuModuleLoad
-var cuModule = cu.moduleLoad("test/test.cubin");
+var cuModule = cu.moduleLoad("test/test.fatbin");
 console.log("Loaded module:", cuModule);
 
 //cuModuleGetFunction
 var cuFunction = cu.moduleGetFunction(cuModule, "helloWorld");
 console.log("Got function:", cuFunction);
 
-var error = cu.launchKernel(cuFunction, [3, 1, 1], [2, 2, 2], cuMem);
+var len = new Uint32Array(1);
+var cuGlobal = cu.moduleGetGlobal(cuModule, "d_size", len);
+console.log("Got global:", cuGlobal, len);
+
+//cuLaunchKernel
+var error = cu.launch(cuFunction, [3, 1, 1], [2, 2, 2],
+[{
+    type: "DevicePtr",
+    value: cuMem.getRaw()
+}]);
 console.log("Launched kernel:", error);
 
 // cuMemcpyDtoH
-var error = cu.memcpyDtoH(cuMem, buf, true);
+var error = cu.memcpyDtoH(buf, cuMem, true);
 console.log("Copied buffer to host:", error);
 
 var error = cu.ctxSynchronize(cuCtx);
