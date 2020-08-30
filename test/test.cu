@@ -1,6 +1,9 @@
 #include <cstdio>
 
 extern "C" {
+
+  __constant__ unsigned int d_size; // for cuModuleGetGlobal() test
+
   __global__ void helloWorld(char *data) {
     #if __CUDA_ARCH__ >= 200
     printf("Hello, world! I'm thread (%d,%d,%d) in block (%d,%d,%d).\n",
