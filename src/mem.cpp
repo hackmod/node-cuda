@@ -145,6 +145,10 @@ NAN_METHOD(MemAlloc) {
   info.GetReturnValue().Set(NOCU_WRAP(NodeCUDeviceptr, devicePtr));
 }
 
+void callback(char *Data, void*hint) {
+  return;
+}
+
 NAN_METHOD(MemAllocHost) {
   REQ_ARGS(1);
 
@@ -154,7 +158,7 @@ NAN_METHOD(MemAllocHost) {
 
   CHECK_ERR(error);
 
-  info.GetReturnValue().Set(Nan::NewBuffer(static_cast<char*>(pp), bytesize).ToLocalChecked());
+  info.GetReturnValue().Set(Nan::NewBuffer(static_cast<char*>(pp), bytesize, callback, 0).ToLocalChecked());
 }
 
 NAN_METHOD(MemHostAlloc) {
@@ -170,7 +174,7 @@ NAN_METHOD(MemHostAlloc) {
   CUresult error = cuMemHostAlloc((void**)&pp, bytesize, flags);
 
   CHECK_ERR(error);
-  info.GetReturnValue().Set(Nan::NewBuffer(static_cast<char*>(pp), bytesize).ToLocalChecked());
+  info.GetReturnValue().Set(Nan::NewBuffer(static_cast<char*>(pp), bytesize, callback, 0).ToLocalChecked());
 }
 
 NAN_METHOD(MemAllocPitch) {
