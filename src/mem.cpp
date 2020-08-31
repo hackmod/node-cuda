@@ -145,6 +145,34 @@ NAN_METHOD(MemAlloc) {
   info.GetReturnValue().Set(NOCU_WRAP(NodeCUDeviceptr, devicePtr));
 }
 
+NAN_METHOD(MemAllocHost) {
+  REQ_ARGS(1);
+
+  void *pp;
+  size_t bytesize = Nan::To<int64_t>(info[0]).ToChecked();
+  CUresult error = cuMemAllocHost((void**)&pp, bytesize);
+
+  CHECK_ERR(error);
+
+  info.GetReturnValue().Set(Nan::NewBuffer(static_cast<char*>(pp), bytesize).ToLocalChecked());
+}
+
+NAN_METHOD(MemHostAlloc) {
+  REQ_ARGS(1);
+
+  void *pp;
+  size_t bytesize = Nan::To<uint32_t>(info[0]).ToChecked();
+  unsigned int flags = 0;
+  if (info.Length() > 1) {
+    flags = Nan::To<int64_t>(info[1]).ToChecked();
+  }
+
+  CUresult error = cuMemHostAlloc((void**)&pp, bytesize, flags);
+
+  CHECK_ERR(error);
+  info.GetReturnValue().Set(Nan::NewBuffer(static_cast<char*>(pp), bytesize).ToLocalChecked());
+}
+
 NAN_METHOD(MemAllocPitch) {
   size_t pPitch;
   unsigned int ElementSizeBytes = Nan::To<uint32_t>(info[2]).ToChecked();
@@ -308,6 +336,8 @@ NAN_METHOD(MemcpyAtoA) {
 NAN_MODULE_INIT(Mem::Initialize) {
   // NodeCUdevicePtr objects can only be created by allocation functions
   Nan::SetMethod(target, "memAlloc", MemAlloc);
+  Nan::SetMethod(target, "memAllocHost", MemAllocHost);
+  Nan::SetMethod(target, "memHostAlloc", MemHostAlloc);
   Nan::SetMethod(target, "memAllocPitch", MemAllocPitch);
   Nan::SetMethod(target, "memFree", MemFree);
   Nan::SetMethod(target, "memcpyHtoD", MemcpyHtoD);
