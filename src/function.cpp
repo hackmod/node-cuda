@@ -8,7 +8,7 @@ using namespace NodeCuda;
 NAN_METHOD(LaunchKernel) {
   Nan::HandleScope scope;
 
-  REQ_ARGS(4);
+  REQ_ARGS(3);
   NOCU_UNWRAP(function, NodeCUFunction, info[0]);
 
   Local<Array> gridDim = Local<Array>::Cast(info[1]);
@@ -21,20 +21,29 @@ NAN_METHOD(LaunchKernel) {
   unsigned int blockDimY = Nan::To<uint32_t>(blockDim->Get(1)).ToChecked();
   unsigned int blockDimZ = Nan::To<uint32_t>(blockDim->Get(2)).ToChecked();
 
-  Local<Object> buf = Nan::To<Object>(info[3]).ToLocalChecked();
-  char *pbuffer = Buffer::Data(buf);
-  size_t bufferSize = Buffer::Length(buf);
-
   void *cuExtra[] = {
-    CU_LAUNCH_PARAM_BUFFER_POINTER, pbuffer,
-    CU_LAUNCH_PARAM_BUFFER_SIZE,    &bufferSize,
+    CU_LAUNCH_PARAM_BUFFER_POINTER, 0,
+    CU_LAUNCH_PARAM_BUFFER_SIZE,    0,
     CU_LAUNCH_PARAM_END
   };
+  void **extra = NULL;
+  char *pbuffer;
+  size_t bufferSize;
+
+  if (info.Length() > 3 && !info[3]->IsUndefined() && !info[3]->IsNull()) {
+    Local<Object> buf = Nan::To<Object>(info[3]).ToLocalChecked();
+    pbuffer = Buffer::Data(buf);
+    bufferSize = Buffer::Length(buf);
+
+    cuExtra[1] = pbuffer;
+    cuExtra[3] = &bufferSize;
+    extra = cuExtra;
+  }
 
   CUresult error = cuLaunchKernel(function->getRaw(),
       gridDimX, gridDimY, gridDimZ,
       blockDimX, blockDimY, blockDimZ,
-      0, 0, NULL, cuExtra);
+      0, 0, NULL, extra);
 
   CHECK_ERR(error);
 
