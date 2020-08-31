@@ -198,9 +198,9 @@ NAN_METHOD(MemcpyHtoD) {
       CUdeviceptr dptr = devPtr->getRaw();
 
       if (async) {
-        error = cuMemcpyHtoDAsync(devicePtr->getRaw(), (void*)dptr, sizeof(CUdeviceptr), 0);
+        error = cuMemcpyHtoDAsync(devicePtr->getRaw(), (void**)&dptr, sizeof(CUdeviceptr), 0);
       } else {
-        error = cuMemcpyHtoD(devicePtr->getRaw(), (void*)dptr, sizeof(CUdeviceptr));
+        error = cuMemcpyHtoD(devicePtr->getRaw(), (void**)&dptr, sizeof(CUdeviceptr));
       }
       info.GetReturnValue().Set(Nan::New<Integer>(error));
       return;
