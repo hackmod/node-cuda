@@ -41,7 +41,8 @@ NAN_METHOD(TotalMem) {
   size_t totalGlobalMem;
   cuDeviceTotalMem(&totalGlobalMem, device);
 
-  info.GetReturnValue().Set(Nan::New<Integer>(static_cast<uint32_t>(totalGlobalMem)));
+  double value = totalGlobalMem;
+  info.GetReturnValue().Set(Nan::New(value));
 }
 
 NAN_MODULE_INIT(Device::Initialize) {
