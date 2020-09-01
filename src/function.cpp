@@ -40,10 +40,17 @@ NAN_METHOD(LaunchKernel) {
     extra = cuExtra;
   }
 
+  CUstream custream = NULL;
+
+  if (info.Length() > 4 && !info[4]->IsUndefined() && !info[4]->IsNull()) {
+    NOCU_UNWRAP(stream, NodeCUStream, info[4]);
+    custream = stream->getRaw();
+  }
+
   CUresult error = cuLaunchKernel(function->getRaw(),
       gridDimX, gridDimY, gridDimZ,
       blockDimX, blockDimY, blockDimZ,
-      0, 0, NULL, extra);
+      0, custream ? custream : 0, NULL, extra);
 
   CHECK_ERR(error);
 

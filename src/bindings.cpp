@@ -1,6 +1,7 @@
 #include "bindings.hpp"
 #include "ctx.hpp"
 #include "device.hpp"
+#include "stream.hpp"
 #include "function.hpp"
 #include "mem.hpp"
 #include "module.hpp"
@@ -37,6 +38,7 @@ NAN_MODULE_INIT(init) {
   // Initialize driver api bindings
   Ctx::Initialize(target);
   Device::Initialize(target);
+  Stream::Initialize(target);
   NodeCuda::Function::Initialize(target);
   Mem::Initialize(target);
   NodeCuda::Module::Initialize(target);
