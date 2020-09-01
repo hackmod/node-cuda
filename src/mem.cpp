@@ -193,9 +193,9 @@ NAN_METHOD(MemAllocPitch) {
 NAN_METHOD(MemFree) {
   REQ_ARGS(1);
 
-  CUdeviceptr devicePtr = Nan::To<uint32_t>(info[0]).ToChecked();
+  NOCU_UNWRAP(devicePtr, NodeCUDeviceptr, info[0]);
 
-  CUresult error = cuMemFree(devicePtr);
+  CUresult error = cuMemFree(devicePtr->getRaw());
 
   info.GetReturnValue().Set(Nan::New<Integer>(error));
 }
