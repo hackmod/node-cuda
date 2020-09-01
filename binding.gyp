@@ -8,6 +8,7 @@
         "src/bindings.cpp",
         "src/ctx.cpp",
         "src/device.cpp",
+        "src/stream.cpp",
         "src/function.cpp",
         "src/mem.cpp",
         "src/module.cpp"
