@@ -41,16 +41,21 @@ NAN_METHOD(LaunchKernel) {
   }
 
   CUstream custream = NULL;
+  unsigned int sharedBytes = 0;
 
   if (info.Length() > 4 && !info[4]->IsUndefined() && !info[4]->IsNull()) {
-    NOCU_UNWRAP(stream, NodeCUStream, info[4]);
+    sharedBytes = Nan::To<uint32_t>(info[4]).ToChecked();
+  }
+
+  if (info.Length() > 5 && !info[5]->IsUndefined() && !info[5]->IsNull()) {
+    NOCU_UNWRAP(stream, NodeCUStream, info[5]);
     custream = stream->getRaw();
   }
 
   CUresult error = cuLaunchKernel(function->getRaw(),
       gridDimX, gridDimY, gridDimZ,
       blockDimX, blockDimY, blockDimZ,
-      0, custream ? custream : 0, NULL, extra);
+      sharedBytes, custream ? custream : 0, NULL, extra);
 
   CHECK_ERR(error);
 
