@@ -65,6 +65,81 @@ NAN_METHOD(CtxGetCurrent) {
   info.GetReturnValue().Set(NOCU_WRAP(NodeCUContext, context));
 }
 
+NAN_METHOD(CtxGetCacheConfig) {
+  CUfunc_cache config;
+  CUresult error = cuCtxGetCacheConfig(&config);
+
+  CHECK_ERR(error);
+  info.GetReturnValue().Set(Nan::New<Integer>(static_cast<uint32_t>(config)));
+}
+
+NAN_METHOD(CtxGetDevice) {
+  CUdevice device;
+  CUresult error = cuCtxGetDevice(&device);
+
+  CHECK_ERR(error);
+  info.GetReturnValue().Set(Nan::New<Integer>(static_cast<uint32_t>(device)));
+}
+
+NAN_METHOD(CtxGetFlags) {
+  unsigned int flags;
+  CUresult error = cuCtxGetFlags(&flags);
+
+  CHECK_ERR(error);
+  info.GetReturnValue().Set(Nan::New<Integer>(flags));
+}
+
+NAN_METHOD(CtxGetLimit) {
+  REQ_ARGS(1);
+  unsigned int limit = Nan::To<uint32_t>(info[0]).ToChecked();
+  size_t value;
+
+  CUresult error = cuCtxGetLimit(&value, static_cast<CUlimit>(limit));
+  double retval = value;
+
+  CHECK_ERR(error);
+  info.GetReturnValue().Set(Nan::New(retval));
+}
+
+NAN_METHOD(CtxSetCacheConfig) {
+  REQ_ARGS(1);
+  unsigned int flags = Nan::To<uint32_t>(info[0]).ToChecked();
+  CUresult error = cuCtxSetCacheConfig(static_cast<CUfunc_cache>(flags));
+
+  CHECK_ERR(error);
+  info.GetReturnValue().Set(Nan::New<Integer>(error));
+}
+
+NAN_METHOD(CtxSetLimit) {
+  REQ_ARGS(2);
+  unsigned int limit = Nan::To<uint32_t>(info[0]).ToChecked();
+  size_t value = Nan::To<int64_t>(info[1]).ToChecked();
+
+  CUresult error = cuCtxSetLimit(static_cast<CUlimit>(limit), value);
+
+  CHECK_ERR(error);
+  info.GetReturnValue().Set(Nan::New<Integer>(error));
+}
+
+NAN_METHOD(CtxGetSharedMemConfig) {
+  CUsharedconfig config;
+
+  CUresult error = cuCtxGetSharedMemConfig(&config);
+
+  CHECK_ERR(error);
+  info.GetReturnValue().Set(Nan::New<Integer>(static_cast<uint32_t>(config)));
+}
+
+NAN_METHOD(CtxSetSharedMemConfig) {
+  REQ_ARGS(1);
+  unsigned int config = Nan::To<uint32_t>(info[0]).ToChecked();
+
+  CUresult error = cuCtxSetSharedMemConfig(static_cast<CUsharedconfig>(config));
+
+  CHECK_ERR(error);
+  info.GetReturnValue().Set(Nan::New<Integer>(error));
+}
+
 struct SynchronizeParams {
   //Ctx *ctx;
   CUcontext *ctx;
@@ -170,6 +245,14 @@ NAN_MODULE_INIT(Ctx::Initialize) {
   Nan::SetMethod(target, "ctxPopCurrent", CtxPopCurrent);
   Nan::SetMethod(target, "ctxSetCurrent", CtxSetCurrent);
   Nan::SetMethod(target, "ctxGetCurrent", CtxGetCurrent);
+  Nan::SetMethod(target, "ctxGetFlags", CtxGetFlags);
+  Nan::SetMethod(target, "ctxGetDevice", CtxGetDevice);
+  Nan::SetMethod(target, "ctxGetLimit", CtxGetLimit);
+  Nan::SetMethod(target, "ctxSetLimit", CtxSetLimit);
+  Nan::SetMethod(target, "ctxGetCacheConfig", CtxGetCacheConfig);
+  Nan::SetMethod(target, "ctxSetCacheConfig", CtxSetCacheConfig);
+  Nan::SetMethod(target, "ctxGetSharedMemConfig", CtxGetSharedMemConfig);
+  Nan::SetMethod(target, "ctxSetSharedMemConfig", CtxSetSharedMemConfig);
   Nan::SetMethod(target, "ctxSynchronize", CtxSynchronize);
   Nan::SetMethod(target, "ctxGetApiVersion", CtxGetApiVersion);
 }
