@@ -1,4 +1,5 @@
 #include "device.hpp"
+#include "types.h"
 
 namespace NodeCuda {
 
@@ -14,7 +15,8 @@ NAN_METHOD(DeviceGet) {
   int ordinal = Nan::To<int32_t>(info[0]).ToChecked();
 
   CUdevice device;
-  cuDeviceGet(&device, ordinal);
+  CUresult error = cuDeviceGet(&device, ordinal);
+  CHECK_ERR(error);
 
   info.GetReturnValue().Set(Nan::New<Integer>(static_cast<uint32_t>(device)));
 }
@@ -23,7 +25,8 @@ NAN_METHOD(ComputeCapability) {
   CUdevice device = Nan::To<uint32_t>(info[0]).ToChecked();
 
   int major = 0, minor = 0;
-  cuDeviceComputeCapability(&major, &minor, device);
+  CUresult error = cuDeviceComputeCapability(&major, &minor, device);
+  CHECK_ERR(error);
 
   Local<Object> result = Nan::New<Object>();
   result->Set(Nan::New("major").ToLocalChecked(), Nan::New<Integer>(major));
@@ -39,10 +42,19 @@ NAN_METHOD(GetName) {
 NAN_METHOD(TotalMem) {
   CUdevice device = Nan::To<uint32_t>(info[0]).ToChecked();
   size_t totalGlobalMem;
-  cuDeviceTotalMem(&totalGlobalMem, device);
+  CUresult error = cuDeviceTotalMem(&totalGlobalMem, device);
+  CHECK_ERR(error);
 
   double value = totalGlobalMem;
   info.GetReturnValue().Set(Nan::New(value));
+}
+
+NAN_METHOD(DevicePrimaryCtxReset) {
+  CUdevice device = Nan::To<uint32_t>(info[0]).ToChecked();
+  CUresult error = cuDevicePrimaryCtxReset(device);
+  CHECK_ERR(error);
+
+  info.GetReturnValue().Set(Nan::New<Integer>(error));
 }
 
 NAN_MODULE_INIT(Device::Initialize) {
@@ -50,6 +62,7 @@ NAN_MODULE_INIT(Device::Initialize) {
   Nan::SetMethod(target, "deviceComputeCapability", ComputeCapability);
   Nan::SetMethod(target, "deviceGetName", GetName);
   Nan::SetMethod(target, "deviceTotalMem", TotalMem);
+  Nan::SetMethod(target, "devicePrimaryCtxReset", DevicePrimaryCtxReset);
 }
 
 }  // namespace NodeCuda
