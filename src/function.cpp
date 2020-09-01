@@ -57,6 +57,60 @@ NAN_METHOD(LaunchKernel) {
   info.GetReturnValue().Set(Nan::New<Integer>(error));
 }
 
+NAN_METHOD(FuncGetAttribute) {
+  REQ_ARGS(2);
+  NOCU_UNWRAP(function, NodeCUFunction, info[0]);
+
+  unsigned int attrib = Nan::To<uint32_t>(info[1]).ToChecked();
+
+  int pi;
+  CUresult error = cuFuncGetAttribute(&pi, static_cast<CUfunction_attribute>(attrib), function->getRaw());
+  CHECK_ERR(error);
+
+  info.GetReturnValue().Set(Nan::New<Integer>(pi));
+}
+
+NAN_METHOD(FuncSetAttribute) {
+  REQ_ARGS(3);
+  NOCU_UNWRAP(function, NodeCUFunction, info[0]);
+
+  unsigned int attrib = Nan::To<uint32_t>(info[1]).ToChecked();
+  int value = Nan::To<int32_t>(info[2]).ToChecked();
+
+  CUresult error = cuFuncSetAttribute(function->getRaw(), static_cast<CUfunction_attribute>(attrib), value);
+  CHECK_ERR(error);
+
+  info.GetReturnValue().Set(Nan::New<Integer>(error));
+}
+
+NAN_METHOD(FuncSetCacheConfig) {
+  REQ_ARGS(2);
+  NOCU_UNWRAP(function, NodeCUFunction, info[0]);
+
+  unsigned int flags = Nan::To<uint32_t>(info[1]).ToChecked();
+
+  CUresult error = cuFuncSetCacheConfig(function->getRaw(), static_cast<CUfunc_cache>(flags));
+  CHECK_ERR(error);
+
+  info.GetReturnValue().Set(Nan::New<Integer>(error));
+}
+
+NAN_METHOD(FuncSetSharedMemConfig) {
+  REQ_ARGS(2);
+  NOCU_UNWRAP(function, NodeCUFunction, info[0]);
+
+  unsigned int config = Nan::To<uint32_t>(info[1]).ToChecked();
+
+  CUresult error = cuFuncSetSharedMemConfig(function->getRaw(), static_cast<CUsharedconfig>(config));
+  CHECK_ERR(error);
+
+  info.GetReturnValue().Set(Nan::New<Integer>(error));
+}
+
 NAN_MODULE_INIT(NodeCuda::Function::Initialize) {
   Nan::SetMethod(target, "launchKernel", LaunchKernel);
+  Nan::SetMethod(target, "funcGetAttribute", FuncGetAttribute);
+  Nan::SetMethod(target, "funcSetAttribute", FuncSetAttribute);
+  Nan::SetMethod(target, "funcSetCacheConfig", FuncSetCacheConfig);
+  Nan::SetMethod(target, "funcSetSharedMemConfig", FuncSetSharedMemConfig);
 }
