@@ -9,6 +9,8 @@ var typeByteSize = {
   "Int8": 1,
   "Int16": 2,
   "Int32": 4,
+  "Int64": 8,
+  "Uint64": 8,
   "Float32": 4,
   "Float64": 8,
   "DevicePtr": 8
@@ -21,6 +23,8 @@ var typeAlignment = {
   "Int8": 1,
   "Int16": 2,
   "Int32": 4,
+  "Int64": 8,
+  "Uint64": 8,
   "Float32": 4,
   "Float64": 8,
   "DevicePtr": 8
@@ -33,6 +37,8 @@ var typeBufferFunc = {
   "Int8": "Int8",
   "Int16": "Int16LE",
   "Int32": "Int32LE",
+  "Int64": "Int64LE",
+  "Uint64": "UInt64LE",
   "Float32": "FloatLE",
   "Float64": "DoubleLE"
 }
@@ -80,8 +86,10 @@ module.exports.launch = function () {
   var gridDim = arguments[1];
   var blockDim = arguments[2];
   var args = arguments[3];
+  var shared = arguments[4];
+  var stream = arguments[5];
 
   args = module.exports.prepareArguments(args);
 
-  return module.exports.launchKernel(func, gridDim, blockDim, args);
+  return module.exports.launchKernel(func, gridDim, blockDim, args, shared, stream);
 }
