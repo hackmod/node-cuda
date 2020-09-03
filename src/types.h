@@ -11,6 +11,7 @@
 #include "common.h"
 
 #include <cuda.h>
+#include <nvrtc.h>
 
 using namespace std;
 using namespace v8;
@@ -173,6 +174,7 @@ NOCU_WRAPPER(NodeCUEvent, CUevent, 3, CUDA_ERROR_INVALID_VALUE, noop, noop);
 NOCU_WRAPPER(NodeCUFunction, CUfunction, 4, CUDA_ERROR_INVALID_VALUE, noop, noop);
 NOCU_WRAPPER(NodeCUModule, CUmodule, 5, CUDA_ERROR_INVALID_VALUE, noop, noop);
 NOCU_WRAPPER(NodeCUStream, CUstream, 6, CUDA_ERROR_INVALID_VALUE, noop, noop);
+NOCU_WRAPPER(NodeCUNvrtcProgram, nvrtcProgram, 7, CUDA_ERROR_INVALID_VALUE, noop, noop);
 
 #define NOCU_WRAP(T, V) \
   T::NewInstance(V)

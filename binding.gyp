@@ -11,7 +11,8 @@
         "src/stream.cpp",
         "src/function.cpp",
         "src/mem.cpp",
-        "src/module.cpp"
+        "src/module.cpp",
+        "src/nvrtc.cpp"
         ],
       "include_dirs": [
                 "<!(node -e \"require('nan')\")"
@@ -22,10 +23,15 @@
           'include_dirs': ['/usr/local/include'],
           'library_dirs': ['/usr/local/lib']
         }],
-        [ 'OS=="linux"', {
+        [ 'OS in "linux freebsd openbsd"', {
+          'variables': {
+            'NVIDIA_CUDA_SDK' : '<!(echo ${CUDA_PATH:-/usr/local/cuda})',
+            'NVIDIA_CUDA_SDK_INCLUDE' : '<(NVIDIA_CUDA_SDK)/include',
+            'NVIDIA_CUDA_SDK_LIB' : '<(NVIDIA_CUDA_SDK)/lib64',
+          },
           'libraries': ['-lcuda'],
-          'include_dirs': ['/usr/local/include'],
-          'library_dirs': ['/usr/local/lib']
+          'include_dirs': ['/usr/local/include', '<(NVIDIA_CUDA_SDK_INCLUDE)'],
+          'library_dirs': ['/usr/local/lib', '<(NVIDIA_CUDA_SDK_LIB)']
         }],
         [ 'OS=="win"', {
           'conditions': [

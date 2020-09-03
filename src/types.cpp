@@ -13,10 +13,11 @@ const char *cu_type_names[] = {
   "CUfunction",
   "CUmodule",
   "CUstream",
+  "nvrtcProgram",
 };
 
-static Nan::Persistent<FunctionTemplate> prototypes[7];
-static Nan::Persistent<Function> constructors[7];
+static Nan::Persistent<FunctionTemplate> prototypes[8];
+static Nan::Persistent<Function> constructors[8];
 
 Nan::Persistent<v8::FunctionTemplate>& prototype(int id) {
   return prototypes[id];
@@ -40,6 +41,7 @@ NAN_METHOD(Types::releaseAll) {
   // NodeCUFunction::releaseAll();
   // NodeCUModule::releaseAll();
   // NodeCUStream::releaseAll();
+  // NodeCUNvrtcProgram::releaseAll();
 }
 
 NAN_MODULE_INIT(Types::init)
@@ -53,6 +55,7 @@ NAN_MODULE_INIT(Types::init)
   NodeCUFunction::Init(target);
   NodeCUModule::Init(target);
   NodeCUStream::Init(target);
+  NodeCUNvrtcProgram::Init(target);
 }
 
 }  // namespace NodeCuda

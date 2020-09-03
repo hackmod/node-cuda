@@ -5,6 +5,7 @@
 #include "function.hpp"
 #include "mem.hpp"
 #include "module.hpp"
+#include "nvrtc.hpp"
 #include "types.h"
 
 #define JS_CU_CONSTANT(name) Nan::Set(target, JS_STR( #name ), JS_INT(CU_ ## name))
@@ -42,6 +43,7 @@ NAN_MODULE_INIT(init) {
   NodeCuda::Function::Initialize(target);
   Mem::Initialize(target);
   NodeCuda::Module::Initialize(target);
+  NodeCuda::Nvrtc::Initialize(target);
 
   /**
    * Platform-dependent byte sizes
