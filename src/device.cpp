@@ -21,6 +21,19 @@ NAN_METHOD(DeviceGet) {
   info.GetReturnValue().Set(Nan::New<Integer>(static_cast<uint32_t>(device)));
 }
 
+NAN_METHOD(DeviceGetAttribute) {
+  REQ_ARGS(2);
+
+  CUdevice device = Nan::To<uint32_t>(info[0]).ToChecked();
+  CUdevice_attribute attrib = static_cast<CUdevice_attribute>(Nan::To<uint32_t>(info[1]).ToChecked());
+
+  int pi;
+  CUresult error = cuDeviceGetAttribute(&pi, attrib, device);
+  CHECK_ERR(error);
+
+  info.GetReturnValue().Set(Nan::New<Integer>(pi));
+}
+
 NAN_METHOD(ComputeCapability) {
   CUdevice device = Nan::To<uint32_t>(info[0]).ToChecked();
 
@@ -57,12 +70,25 @@ NAN_METHOD(DevicePrimaryCtxReset) {
   info.GetReturnValue().Set(Nan::New<Integer>(error));
 }
 
+NAN_METHOD(DevicePrimaryCtxSetFlags) {
+  REQ_ARGS(2);
+  CUdevice device = Nan::To<uint32_t>(info[0]).ToChecked();
+  unsigned int flags = Nan::To<uint32_t>(info[1]).ToChecked();
+
+  CUresult error = cuDevicePrimaryCtxSetFlags(device, flags);
+
+  CHECK_ERR(error);
+  info.GetReturnValue().Set(Nan::New<Integer>(error));
+}
+
 NAN_MODULE_INIT(Device::Initialize) {
   Nan::SetMethod(target, "deviceGet", DeviceGet);
   Nan::SetMethod(target, "deviceComputeCapability", ComputeCapability);
+  Nan::SetMethod(target, "deviceGetAttribute", DeviceGetAttribute);
   Nan::SetMethod(target, "deviceGetName", GetName);
   Nan::SetMethod(target, "deviceTotalMem", TotalMem);
   Nan::SetMethod(target, "devicePrimaryCtxReset", DevicePrimaryCtxReset);
+  Nan::SetMethod(target, "devicePrimaryCtxSetFlags", DevicePrimaryCtxSetFlags);
 }
 
 }  // namespace NodeCuda
