@@ -28,6 +28,62 @@ NAN_METHOD(ModuleUnload) {
   info.GetReturnValue().Set(Nan::New<Integer>(error));
 }
 
+NAN_METHOD(ModuleLoadData) {
+  REQ_ARGS(1);
+
+  Nan::Utf8String image(info[0]);
+
+  CUmodule module;
+  CUresult error = cuModuleLoadData(&module, *image);
+
+  if (error != CUDA_SUCCESS)
+    info.GetReturnValue().Set(Nan::New<Integer>(error));
+  else
+    info.GetReturnValue().Set(NOCU_WRAP(NodeCUModule, module));
+}
+
+NAN_METHOD(ModuleLoadDataEx) {
+  REQ_ARGS(1);
+
+  Nan::Utf8String image(info[0]);
+  int num = 0;
+  CUjit_option* options = NULL;
+  void** optionValues = NULL;
+  if (info.Length() > 2 && info[1]->IsArray() && info[2]->IsArray()) {
+    Local<Array> arr = Local<Array>::Cast(info[1]);
+    Local<Array> arr2 = Local<Array>::Cast(info[2]);
+    options = (CUjit_option*) malloc(sizeof(CUjit_option) * arr->Length());
+    for (unsigned int j = 0; j < arr->Length(); j++) {
+      options[j] = static_cast<CUjit_option>(Nan::To<uint32_t>(Nan::Get(arr, j).ToLocalChecked()).ToChecked());
+      num++;
+    }
+    optionValues = (void **) malloc(sizeof(void*) * arr2->Length());
+    for (unsigned int j = 0; j < arr2->Length(); j++) {
+      Local<Value> target = Nan::Get(arr2, j).ToLocalChecked();
+      if (Buffer::HasInstance(target)) {
+        void* phost = Buffer::Data(target);
+        optionValues[j] = phost;
+      } else if (target->IsNumber()) {
+        uint32_t val = Nan::To<uint32_t>(target).ToChecked();
+        optionValues[j] = reinterpret_cast<void*>(val);
+      }
+    }
+  }
+
+  CUmodule module;
+  CUresult error = cuModuleLoadDataEx(&module, *image, num, options, optionValues);
+
+  if (options)
+    free(options);
+  if (optionValues)
+    free(optionValues);
+
+  if (error != CUDA_SUCCESS)
+    info.GetReturnValue().Set(Nan::New<Integer>(error));
+  else
+    info.GetReturnValue().Set(NOCU_WRAP(NodeCUModule, module));
+}
+
 NAN_METHOD(ModuleGetFunction) {
   REQ_ARGS(2);
 
@@ -64,6 +120,8 @@ NAN_METHOD(ModuleGetGlobal) {
 NAN_MODULE_INIT(Module::Initialize) {
   // Module objects can only be created by load functions
   Nan::SetMethod(target, "moduleLoad", ModuleLoad);
+  Nan::SetMethod(target, "moduleLoadData", ModuleLoadData);
+  Nan::SetMethod(target, "moduleLoadDataEx", ModuleLoadDataEx);
   Nan::SetMethod(target, "moduleUnload", ModuleUnload);
   Nan::SetMethod(target, "moduleGetFunction", ModuleGetFunction);
   Nan::SetMethod(target, "moduleGetGlobal", ModuleGetGlobal);
