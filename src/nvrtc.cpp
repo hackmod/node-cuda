@@ -53,10 +53,19 @@ NAN_METHOD(NvrtcVersion) {
 NAN_METHOD(CreateProgram) {
   REQ_ARGS(1);
 
+  char *input;
+  Nan::Utf8String * buff = nullptr;
   if (!info[0]->IsString()) {
-    return Nan::ThrowError("Argument 2 should be a string object.");
+    Local<Object> target = Nan::To<Object>(info[0]).ToLocalChecked();
+    if (Buffer::HasInstance(target)) {
+      input = Buffer::Data(target);
+    } else {
+      return Nan::ThrowError("Argument 1 should be a string or a buffer object.");
+    }
+  } else {
+    buff = new Nan::Utf8String(info[0]);
+    input = **buff;
   }
-  Nan::Utf8String input(info[0]);
 
   Nan::Utf8String * name = nullptr;
 
@@ -104,7 +113,7 @@ NAN_METHOD(CreateProgram) {
   }
 
   nvrtcProgram prog;
-  nvrtcResult error = funcs._nvrtcCreateProgram(&prog, *input, name != nullptr ? **name : NULL, numOptions, header_contents, headers);
+  nvrtcResult error = funcs._nvrtcCreateProgram(&prog, input, name != nullptr ? **name : NULL, numOptions, header_contents, headers);
 
   NVRTC_CHECK_ERR(error);
   info.GetReturnValue().Set(NOCU_WRAP(NodeCUNvrtcProgram, prog));
