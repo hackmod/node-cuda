@@ -11,8 +11,8 @@ for (var i = 0; i < cu.deviceCount; i++) {
 
     //cuDeviceComputeCapability
     //cuDeviceGetName
-    //cuDeviceTotalMem
-    console.log("Device " + i + ":", cuDevice);
+    var sz = cu.deviceTotalMem(i);
+    console.log("Device " + i + ":", sz);
 }
 
 //cuCtxCreate
@@ -20,6 +20,14 @@ var cuCtx = cu.ctxCreate(0, cu.deviceGet(0));
 
 //cuCtxGetApiVersion
 console.log("Created context:", cuCtx);
+
+//cuMemAllocHost
+var cuHost = cu.memAllocHost(100);
+console.log("Allocated 100 host array:", cuHost);
+for (var i = 0; i < cuHost.length; i++) {
+    cuHost[i] = (i + 1) % 256;
+}
+console.log("Allocate host array:", cuHost);
 
 //cuMemAllocPitch
 var cuMem = cu.memAllocPitch(100, 100, 8);
@@ -67,21 +75,20 @@ console.log("Launched kernel:", error);
 var error = cu.memcpyDtoH(buf, cuMem, true);
 console.log("Copied buffer to host:", error);
 
-var error = cu.ctxSynchronize(cuCtx);
+//var error = cu.ctxSynchronize();
 
 console.log("Context destroyed with error code: " + error);
-/*
+
 //cuCtxSynchronize
-var error = cuCtx.synchronize(function(error) {
+var error = cu.ctxSynchronize(cuCtx, function(error) {
     console.log("Context synchronize with error code: " + error);
+    console.log("cuCtx synchronize callback", cuCtx);
 
     //cuMemFree
-    var error = cuMem.free();
+    var error = cu.memFree(cuMem);
     console.log("Mem Free with error code: " + error);
 
     //cuCtxDestroy
-    error = cuCtx.destroy();
+    error = cu.ctxDestroy(cuCtx);
     console.log("Context destroyed with error code: " + error);
 });
-
-*/
