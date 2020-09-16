@@ -4,6 +4,15 @@
 
 using namespace NodeCuda;
 
+namespace NodeCuda {
+
+namespace Ctx {
+    static void Process(uv_work_t* work_req);
+    static void After(uv_work_t* work_req, int status);
+};
+
+};
+
 NAN_METHOD(CtxCreate) {
   REQ_ARGS(2);
 
@@ -141,30 +150,24 @@ NAN_METHOD(CtxSetSharedMemConfig) {
 }
 
 struct SynchronizeParams {
-  //Ctx *ctx;
-  CUcontext *ctx;
+  NodeCUContext *ctx;
   CUresult error;
   Nan::Callback *cb;
 };
 
 NAN_METHOD(CtxSynchronize) {
-  CUresult error = cuCtxSynchronize();
-  info.GetReturnValue().Set(Nan::New<Integer>(error));
-
-  /*
-  if (info.Length() >= 1 && info[0]->IsFunction()) {
+  if (info.Length() >= 2 && info[1]->IsFunction()) {
     // Asynchronous
 
-    NOCU_UNWRAP(ctx, NodeCUContext, info[1]);
+    Nan::MaybeLocal<Object> target = Nan::To<Object>(info[0]);
+    if (target.IsEmpty())
+        return;
 
-    Ctx *ctx = ObjectWrap::Unwrap<Ctx>(info.Holder());
-    if (ctx->sync_in_progress) {
-      info.GetReturnValue().Set(Nan::New<Integer>(-1));
-    }
+    NOCU_UNWRAP(ctx, NodeCUContext, info[0]);
 
     SynchronizeParams *params = new SynchronizeParams();
     params->ctx = ctx;
-    params->cb = new Nan::Callback(info[0].As<Function>());
+    params->cb = new Nan::Callback(info[1].As<Function>());
 
     cuCtxPopCurrent(NULL);
 
@@ -174,12 +177,12 @@ NAN_METHOD(CtxSynchronize) {
 
     uv_queue_work(uv_default_loop(),
         work_req,
-        Process,
-        After);
+        Ctx::Process,
+        Ctx::After);
     uv_ref((uv_handle_t*) &work_req);
 
-    ctx->Ref();
-    ctx->sync_in_progress = true;
+    //ctx->Ref();
+    //ctx->sync_in_progress = true;
 
     info.GetReturnValue().Set(Nan::Undefined());
   } else {
@@ -187,14 +190,12 @@ NAN_METHOD(CtxSynchronize) {
     CUresult error = cuCtxSynchronize();
     info.GetReturnValue().Set(Nan::New<Integer>(error));
   }
-  */
 }
 
-/*
-void Process(uv_work_t* work_req) {
+static void NodeCuda::Ctx::Process(uv_work_t* work_req) {
   SynchronizeParams *params = static_cast<SynchronizeParams*>(work_req->data);
 
-  params->error = cuCtxPushCurrent(params->ctx->m_context);
+  params->error = cuCtxPushCurrent(params->ctx->getRaw());
   if (params->error) return;
 
   params->error = cuCtxSynchronize();
@@ -203,28 +204,27 @@ void Process(uv_work_t* work_req) {
   params->error = cuCtxPopCurrent(NULL);
 }
 
-void After(uv_work_t* work_req, int status) {
+static void NodeCuda::Ctx::After(uv_work_t* work_req, int status) {
   Nan::HandleScope scope;
 
   assert(status == 0);
   SynchronizeParams *params = static_cast<SynchronizeParams*>(work_req->data);
 
-  params->ctx->Unref();
-  params->ctx->sync_in_progress = false;
+  //params->ctx->Unref();
+  //params->ctx->sync_in_progress = false;
 
-  cuCtxPushCurrent(params->ctx->m_context);
+  cuCtxPushCurrent(params->ctx->getRaw());
 
   Local<Value> argv[1];
   argv[0] = Nan::New<Integer>(params->error);
 
   Nan::TryCatch try_catch;
-  params->cb->Call(1, argv, NULL);
+  Nan::Call(*params->cb, 1, argv);
   if (try_catch.HasCaught()) FatalException(try_catch);
 
   uv_unref((uv_handle_t*) work_req);
   delete params;
 }
-*/
 
 NAN_METHOD(CtxGetApiVersion) {
   REQ_ARGS(1);
